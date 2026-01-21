@@ -21,7 +21,7 @@ export function RegistrationSection() {
               key={s}
               onClick={() => setStatus(s)}
               className={`px-3 py-1 rounded text-xs font-medium capitalize transition-colors ${status === s
-                ? "bg-indigo-600 text-white"
+                ? "bg-[#007b8a] text-white"
                 : "bg-white dark:bg-black text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800"
                 }`}
             >
@@ -33,6 +33,18 @@ export function RegistrationSection() {
         {/* 1. GUEST VIEW: Google Form & Application */}
         {status === "guest" && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="mx-auto max-w-2xl text-center mb-16">
+              <h2 className="text-4xl sm:text-6xl font-black tracking-[-0.05em] uppercase text-[#007b8a] mb-4">
+                Registration
+              </h2>
+              <p className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-2xl">
+                Apply for MedHack 2026
+              </p>
+              <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-400">
+                Fill out the form below and submit your application to join the next generation of medical engineers.
+              </p>
+            </div>
+
             <div className="mx-auto max-w-4xl">
               {/* Custom Styled Form with built-in submit */}
               <CustomApplicationForm onSubmitSuccess={() => setStatus("pending")} />
@@ -50,9 +62,12 @@ export function RegistrationSection() {
                 </svg>
               </div>
             </div>
-            <h2 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
-              Application Under Review
+            <h2 className="text-4xl sm:text-5xl font-black tracking-[-0.05em] uppercase text-[#007b8a] mb-4">
+              Reviewing
             </h2>
+            <p className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">
+              Application Under Review
+            </p>
             <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-300">
               Thanks for applying! Our team is reviewing your eligibility. We will notify you via email once a decision has been made.
             </p>
@@ -74,16 +89,19 @@ export function RegistrationSection() {
                   </svg>
                 </div>
               </div>
-              <h2 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-4xl">
-                Congratulations! You're In.
+              <h2 className="text-4xl sm:text-6xl font-black tracking-[-0.05em] uppercase text-[#007b8a] mb-4">
+                You're In!
               </h2>
-              <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-300">
+              <p className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-2xl">
+                Congratulations!
+              </p>
+              <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-400">
                 Your application has been approved. Secure your ticket below to confirm your spot.
               </p>
             </div>
 
             <div className="mx-auto max-w-4xl bg-white dark:bg-zinc-900 rounded-3xl shadow-xl ring-1 ring-zinc-200 dark:ring-zinc-800 overflow-hidden">
-              <div className="bg-indigo-600 px-6 py-4">
+              <div className="bg-[#007b8a] px-6 py-4">
                 <h3 className="text-white font-semibold">Official Ticket Counter</h3>
               </div>
               <div className="p-10 text-center">

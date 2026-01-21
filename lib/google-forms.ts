@@ -36,6 +36,10 @@ export async function getPublicEntryIds(publishedId: string): Promise<Map<string
                         const firstID = answerData[0][0];
                         // If firstID is numeric, it's likely a simple question
                         if (typeof firstID === 'number' || (typeof firstID === 'string' && /^\d+$/.test(firstID))) {
+                            const currentList = mapping.get(title) || [];
+                            currentList.push(String(firstID));
+                            mapping.set(title, currentList);
+                            console.log(`  -> Simple ID: ${firstID} (Count: ${currentList.length})`);
                             appendToMap(title, String(firstID));
                             // console.log(`  -> Simple ID: ${firstID}`);
                         }
@@ -67,6 +71,9 @@ export async function getPublicEntryIds(publishedId: string): Promise<Map<string
                         });
 
                         if (isGrid) {
+                            const currentList = mapping.get(title) || [];
+                            currentList.push(rowMap);
+                            mapping.set(title, currentList);
                             appendToMap(title, rowMap);
                         }
                     }

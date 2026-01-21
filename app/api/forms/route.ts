@@ -210,6 +210,9 @@ export async function GET(req: Request) {
                         };
                     }) || [];
 
+                    // If we got a grid object back (not string), use it
+                    // The entryData logic above handles FIFO for grids too if titles matched
+                    
                     const gridQuestion: FormQuestion = {
                         id: uniqueKey,
                         // Grids are special, they don't have a single entry ID submitted at the top level
