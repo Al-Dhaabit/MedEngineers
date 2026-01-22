@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession, signIn } from "next-auth/react";
+import { useSession, signIn, signOut } from "next-auth/react";
 
 
 // hello world (testing smth)
@@ -606,9 +606,17 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                     <h3 className="text-2xl font-bold text-white">{formData.title}</h3>
                     <p className="mt-2 text-indigo-100">{formData.description}</p>
                     {session && (
-                        <p className="mt-3 text-sm text-indigo-200">
-                            Signed in as {session.user?.email}
-                        </p>
+                        <div className="mt-3 flex items-center justify-center gap-3">
+                            <p className="text-sm text-indigo-200">
+                                Signed in as {session.user?.email}
+                            </p>
+                            <button
+                                onClick={() => signOut()}
+                                className="text-xs px-3 py-1 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors"
+                            >
+                                Sign out
+                            </button>
+                        </div>
                     )}
                 </div>
             </div>
@@ -617,7 +625,7 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
             <div className="p-6 sm:p-8 space-y-0 divide-y divide-zinc-200 dark:divide-zinc-800">
                 {formData.questions.map((question, index) => (
                     <div
-                        key={question.id}
+                        key={`${question.id}-${index}`}
                         className="py-8 first:pt-0 last:pb-0"
                     >
                         <label className="block mb-4">
