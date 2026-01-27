@@ -21,12 +21,14 @@ export const authOptions = {
             if (account) {
                 token.accessToken = account.access_token;
                 token.refreshToken = account.refresh_token;
+                token.idToken = account.id_token; // Added by Ahmad for Firebase
             }
             return token;
         },
         async session({ session, token }: any) {
             // Send properties to the client
             session.accessToken = token.accessToken as string;
+            session.idToken = token.idToken as string; // Added by Ahmad for Firebase
             return session;
         },
     },

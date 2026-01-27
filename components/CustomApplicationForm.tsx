@@ -202,6 +202,14 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                 }
             });
 
+            // STEP1: Log the data before submission
+            console.log("=== PRE-AUTH SUBMISSION DATA ===");
+            console.log("Form Type:", formType);
+            console.log("Form Data:", formData);
+            console.log("Responses:", responses);
+            console.log("Submission Payload:", submissionPayload);
+
+
             console.log("=== FINAL PAYLOAD ===");
             console.log(JSON.stringify(submissionPayload, null, 2));
         }
@@ -254,6 +262,11 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
             if (pendingPayload) {
                 const payload = JSON.parse(pendingPayload);
 
+                // POST AUTH SUBMISSION DATA CHECK
+                console.log("=== POST-AUTH SUBMISSION DATA ===");
+                console.log("User email:", session.user?.email);
+                console.log("Recovered Payload:", payload);
+
                 // Clear storage immediately to prevent re-triggering
                 sessionStorage.removeItem("pendingFormPayload");
                 sessionStorage.removeItem("pendingFormType");
@@ -271,13 +284,35 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                         setSubmitting(true);
                         setError(null);
 
+                        // Retrieve firebase ID token
+                        let firebaseIdToken = null;
+                        try {
+                            const { auth } = await import("@/lib/Firebase");
+                            const { GoogleAuthProvider, signInWithCredential } = await import("firebase/auth")
+
+                            const nextAuthIdToken = (session as any).idToken;
+
+                            // If Firebase isn't signed in, use the NextAuth access token to sign in
+                            if (!auth.currentUser && nextAuthIdToken) {
+                                const credential = GoogleAuthProvider.credential(nextAuthIdToken);
+                                await signInWithCredential(auth, credential);
+                            }
+
+                            // Get the token from Firebase
+                            firebaseIdToken = await auth.currentUser?.getIdToken(true);
+                        } catch (tokenError) {
+                            console.error("Failed to get Firebase ID token", tokenError);
+                        }
+
+                        // Payload will be used in storing data to Firebase
                         // Payload is already transformed with Entry IDs
                         const res = await fetch("/api/forms/submit", {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({
                                 responses: payload,
-                                type: pendingType || "competitor"
+                                type: pendingType || "competitor",
+                                idToken: firebaseIdToken
                             }),
                         });
 

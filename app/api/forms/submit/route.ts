@@ -3,6 +3,9 @@ import { google } from "googleapis";
 import { getServerSession } from "next-auth";
 import { authOptions } from "../../auth/[...nextauth]/route";
 import { getPublicEntryIds } from "@/lib/google-forms";
+import { auth } from "@/lib/Firebase";
+import admin from "firebase-admin";
+import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
 
 export async function POST(req: NextRequest) {
     try {
@@ -13,7 +16,41 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json();
-        const { responses, type = "competitor" } = body;
+        const { responses, type = "competitor", idToken } = body; // Added idToken to be fetched by, Ahmad for Firebase Storage
+
+        // === CODE ADDED BY AHMAD FOR FIREBASE === //
+        console.log("=== RECIEVED DATA ===")
+        console.log("Received responses:", responses);
+        console.log("Received type:", type);
+        console.log("Received idToken:", idToken);
+
+        // Storing form submission to Firebase
+        if (type === "attendee" && idToken) {
+            try {
+                // Verify idtToken and get the UserID
+                const decodedToken = await adminAuth.verifyIdToken(idToken);
+                const uid = decodedToken.uid;
+
+
+                // Store the form submission to Firebase
+                await adminDb.collection("attendees").doc(uid).set({
+                    fullName: responses["1706880442"] || "",
+                    email: responses["464604082"] || session.user.email,
+                    contactNo: responses["1329997643"] || "",
+                    nationality: responses["492691881"] || "",
+                    emiratesID: responses["1368274746"] || "",
+                    major: responses["1740303904"] || "",
+                    paid: false,
+                    submittedAt: admin.firestore.FieldValue.serverTimestamp(),
+                }, { merge: true });
+
+                console.log("=== FORM SUBMITTED ===")
+                console.log("Form submitted successfully for user:", uid);
+            } catch (fbError) {
+                console.log("=== FORM SUBMISSION FAILED ===")
+                console.log(fbError);
+            }
+        }
 
         // 2. Identify Configuration
         const formId = type === "attendee"
