@@ -40,7 +40,7 @@ export async function POST(req: NextRequest) {
                     );
                 }
 
-                // Store the form submission to Firebase (if user doesn't exist)
+                // Store the form submission to Firebase collection attendees (if user doesn't exist)
                 await adminDb.collection("attendees").doc(uid).set({
                     fullName: responses["1706880442"] || "",
                     email: responses["464604082"] || session.user.email,
@@ -56,6 +56,85 @@ export async function POST(req: NextRequest) {
                 console.log("Form submitted successfully for user:", uid);
             } catch (fbError) {
                 console.log("=== FORM SUBMISSION FAILED ===")
+                console.log(fbError);
+            }
+        } else if (type === "competitor" && idToken) {
+            try {
+                // Verify idtToken and get the UserID
+                const decodedToken = await adminAuth.verifyIdToken(idToken);
+                const uid = decodedToken.uid;
+
+                // check if user already exists in attendees collection
+                const userDoc = await adminDb.collection("competitors").doc(uid).get();
+                if (userDoc.exists) {
+                    return NextResponse.json(
+                        { error: "User already exists" },
+                        { status: 409 }
+                    );
+                }
+
+                if (responses["563534208"] === "Engineering") {
+                    // Store the form submission to Firebase collection competitor (Engineering)
+                    await adminDb.collection("competitors").doc(uid).set({
+                        fullName: responses["1706880442"] || "",
+                        email: responses["464604082"] || "",
+                        contactNo: responses["1329997643"] || "",
+                        nationality: responses["492691881"] || "",
+                        emiratesID: responses["1368274746"] || "",
+                        major: responses["563534208"] || "",
+                        majorType: responses["1921732712"] || "",
+                        year: responses["2106989264"] || "",
+                        linkedIn: responses["1706787055"] || "",
+                        googleDrive: responses["979885116"] || "",
+                        group1: responses["2005954606"] || [],
+                        group2: responses["909777607"] || [],
+                        group3: responses["1618805851"] || [],
+                        group4: responses["342956899"] || [],
+                        workStyle: responses["1475281755"] || "",
+                        projects: responses["1889236055"] || "",
+                        experience: responses["913830966"] || "",
+                        challengeAnswer: responses["1822551769"] || "",
+                        submittedAt: admin.firestore.FieldValue.serverTimestamp(),
+                        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                        isPayed: false,
+                        domain: "",
+                        attended: false,
+                    }, { merge: true });
+                }
+
+                if (responses["563534208"] === "Medicine") {
+                    // Store the form submission to Firebase collection competitor (Medicine)
+                    await adminDb.collection("competitors").doc(uid).set({
+                        fullName: responses["1706880442"] || "",
+                        email: responses["464604082"] || "",
+                        contactNo: responses["1329997643"] || "",
+                        nationality: responses["492691881"] || "",
+                        emiratesID: responses["1368274746"] || "",
+                        major: responses["563534208"] || "",
+                        majorType: responses["1945900292"] || "",
+                        year: responses["257116715"] || "",
+                        skillSet: responses["697380523"] || "",
+                        linkedIn: responses["1745529891"] || "",
+                        resume: responses["2111396898"] || "",
+                        googleDrive: responses["934276771"] || "",
+                        challenge1: responses["1644031809"] || "",
+                        challenge2: responses["1176839290"] || "",
+                        enthusiasmCheck: responses["1213229623"] || "",
+                        collaborativeSpirit: responses["1628051962"] || "",
+                        submittedAt: admin.firestore.FieldValue.serverTimestamp(),
+                        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                        isPayed: false,
+                        status: "pending",
+                        domain: "",
+                        attended: false,
+                    }, { merge: true });
+                }
+
+                console.log("=== FORM SUBMITTED (COMPETITOR - " + responses["563534208"] + ") ===")
+                console.log("Form submitted successfully for user:", uid);
+
+            } catch (fbError) {
+                console.log("=== FORM SUBMISSION FAILED (COMPETITOR) ===")
                 console.log(fbError);
             }
         }
