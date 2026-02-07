@@ -1,9 +1,8 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import ReactMarkdown from "react-markdown";
 
 
-// hello world (testing smth)
 // Type definitions for form data
 interface FormQuestion {
     id: string;
@@ -49,18 +48,172 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
     const [selectedMajor, setSelectedMajor] = useState<string | null>(null);
     const [validationErrors, setValidationErrors] = useState<Record<string, string | null>>({});
     const [isFormValid, setIsFormValid] = useState(false);
+    // FRONTEND-ONLY SECTION HEADERS
+    // These will be displayed BEFORE the question with the matching title
+    // This allows us to remove sections from Google Forms (which break Entry ID scraping)
+    // while keeping the visual structure in our frontend
+    // showFor: optional - if specified, only show for this major. If omitted, show for all.
+    const FRONTEND_SECTIONS: Record<string, { title: string; description: string; showFor?: string }> = {
+        // ============ ENGINEERING SECTIONS ============
+        "Group 1: Physical Systems (Domain A)": {
+            title: "Your Technical Toolkit",
+            description: "Select the skills you actually have experience with. This will determine your Hackathon Domain.",
+            showFor: "Engineering"
+        },
+        "Which of these best describes your contribution to a high-speed team?": {
+            title: "The \"Work Style\" Persona",
+            description: "",
+            showFor: "Engineering"
+        },
+        "Briefly describe your most \"hands-on\" project: (This could be a lab assignment, a student club project, or a personal hobby like fixing a car or building a website).": {
+            title: "Experience & Proof of Work",
+            description: "",
+            showFor: "Engineering"
+        },
+        "Scenario: A hospital's medication delivery system is failing. Nurses are walking 2km a day just to fetch pills from the pharmacy.": {
+            title: "The Engineering Logic Test",
+            description: "Briefly answer the following to show us how you solve problems.",
+            showFor: "Engineering"
+        },
+
+        // ============ MEDICINE SECTIONS ============
+        // Use a Medicine-specific question as key (the second "What is your major?" has same label, so we use the next unique question)
+        "If you were in a Hackathon team right now, which of these is your strongest asset?": {
+            title: "Skillset",
+            description: "",
+            showFor: "Medicine"
+        },
+        "LinkedIn Profile URL (Optional)": {
+            title: "Experience & Portfolio",
+            description: "",
+            showFor: "Medicine"
+        },
+        "The Clinical Efficiency Challenge": {
+            title: "The \"Smartness\" Test (Critical Thinking)",
+            description: "Choose one of these scenarios to test their ability to apply medical knowledge to innovation.",
+            showFor: "Medicine"
+        },
+        // "The Why" is Medicine-only (has healthcare-specific description), no common ending section
+    };
 
     // Skip logic configuration: question ranges for each major (1-indexed)
     // Each major shows questions from 'start' up to but not including 'end'
-    // Questions before the major question (e.g., 1-4) are always shown
+    // Questions before the major question (e.g., 1-6) are always shown
+    // NOTE: These indices assume SECTIONS HAVE BEEN REMOVED from Google Forms
     const SKIP_LOGIC: Record<string, { start: number; end: number | null }> = {
-        "Engineering": { start: 7, end: 23 },   // Items 7-22 (Engineering header through end of Engineering questions)
-        "Medicine": { start: 23, end: null },   // Items 23-end (Medicine header through end)
+        "Engineering": { start: 7, end: 19 },   // Items 7-18 (Engineering-only questions)
+        "Medicine": { start: 19, end: null },   // Items 19+ (Medicine-only questions)
     };
+
+    // No common ending - both tracks have their own final questions
+    const COMMON_ENDING_START = 9999; // Disabled - no common ending section
 
     // The question index (0-indexed) that triggers the skip logic
     // This is typically "What major are you in?" - we'll detect it by label
     const MAJOR_QUESTION_KEYWORDS = ["what major are you in", "what is your major and year of study"];
+
+    // ===== TEST DATA GENERATOR =====
+    const fillTestData = (targetMajor: "Engineering" | "Medicine") => {
+        if (!formData) return;
+
+        // Force major update so visibility logic is correct for the loop
+        setSelectedMajor(targetMajor);
+
+        const newResponses: FormResponses = { ...responses };
+
+        // Determine visibility based on SKIP_LOGIC
+        const checkVisibility = (index: number, major: string): boolean => {
+            const majorQuestionIndex = formData.questions.findIndex(q =>
+                MAJOR_QUESTION_KEYWORDS.some(kw => q.label.toLowerCase().includes(kw))
+            );
+            if (index <= majorQuestionIndex) return true;
+            const range = SKIP_LOGIC[major];
+            if (!range) return true;
+            const questionNumber = index + 1;
+            const afterStart = questionNumber >= range.start;
+            const beforeEnd = range.end === null || questionNumber < range.end;
+            const isCommonEnding = questionNumber >= COMMON_ENDING_START;
+            return (afterStart && beforeEnd) || isCommonEnding;
+        };
+
+        formData.questions.forEach((q, index) => {
+            if (!checkVisibility(index, targetMajor)) return;
+
+            // Handle major question itself
+            if (MAJOR_QUESTION_KEYWORDS.some(kw => q.label.toLowerCase().includes(kw))) {
+                newResponses[q.id] = targetMajor;
+                return;
+            }
+
+            // Skip section headers
+            if (q.type === "section_header") return;
+
+            const labelLower = q.label.toLowerCase();
+
+            // Fill based on type with realistic defaults
+            switch (q.type) {
+                case "short_answer":
+                    if (labelLower.includes("email")) newResponses[q.id] = "test.user@example.com";
+                    else if (labelLower.includes("phone") || labelLower.includes("whatsapp") || labelLower.includes("contact")) newResponses[q.id] = "+971501234567";
+                    else if (labelLower.includes("emirates id")) newResponses[q.id] = "784-1234-1234567-1";
+                    else if (labelLower.includes("gpa")) newResponses[q.id] = "3.8";
+                    else if (labelLower.includes("year")) newResponses[q.id] = "2025";
+                    else if (labelLower.includes("url") || labelLower.includes("portfolio") || labelLower.includes("linkedin") || labelLower.includes("github")) newResponses[q.id] = "https://example.com/testprofile";
+                    else if (labelLower.includes("name")) newResponses[q.id] = "Test Applicant";
+                    else if (labelLower.includes("university")) newResponses[q.id] = "Khalifa University";
+                    else newResponses[q.id] = "Test Answer";
+                    break;
+                case "paragraph":
+                    newResponses[q.id] = "This is a detailed test response populated by the automated test tool. It ensures that the form can handle paragraph inputs and meets any length requirements for this specific question.";
+                    break;
+                case "radio":
+                case "dropdown":
+                    if (q.options && q.options.length > 0) {
+                        const firstOption = q.options[0];
+                        newResponses[q.id] = firstOption === "__OTHER__" ? (q.options[1] || "Other Test Value") : firstOption;
+                    }
+                    break;
+                case "checkbox":
+                    if (q.options && q.options.length > 0) {
+                        newResponses[q.id] = [q.options[0]];
+                    }
+                    break;
+                case "linear_scale":
+                case "star_rating":
+                    newResponses[q.id] = Math.ceil(((q.max || 5) + (q.min || 1)) / 2);
+                    break;
+                case "grid_radio":
+                    if (q.rows && q.columns && q.columns.length > 0) {
+                        const gridResp: Record<string, string> = {};
+                        q.rows.forEach(row => { gridResp[row.id] = q.columns![0]; });
+                        newResponses[q.id] = gridResp;
+                    }
+                    break;
+                case "grid_checkbox":
+                    if (q.rows && q.columns && q.columns.length > 0) {
+                        const gridResp: Record<string, string[]> = {};
+                        q.rows.forEach(row => { gridResp[row.id] = [q.columns![0]]; });
+                        newResponses[q.id] = gridResp;
+                    }
+                    break;
+                case "date":
+                    newResponses[q.id] = new Date().toISOString().split('T')[0];
+                    break;
+                case "time":
+                    newResponses[q.id] = "12:00";
+                    break;
+                case "datetime":
+                    newResponses[q.id] = { date: new Date().toISOString().split('T')[0], time: "12:00" };
+                    break;
+                case "duration":
+                    newResponses[q.id] = { hours: 1, minutes: 30, seconds: 0 };
+                    break;
+            }
+        });
+
+        setResponses(newResponses);
+        setValidationErrors({}); // Clear errors as we filled valid data
+    };
 
     const isValidEmail = (email: string) => {
         return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -298,8 +451,59 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
 
                 // Handle standard questions
                 if (q.entryId) {
-                    submissionPayload[q.entryId] = answer;
-                    console.log(`  -> Submitting: entry.${q.entryId} = "${String(answer).substring(0, 30)}..."`);
+                    let finalAnswer = answer;
+
+                    // Support for "Other" option in Radio/Checkbox/Dropdown
+                    if ((q.type === 'radio' || q.type === 'checkbox' || q.type === 'dropdown') && q.options && q.options.length > 0) {
+                        const optionsSet = new Set(q.options);
+
+                        if (Array.isArray(answer)) {
+                            // Checkbox: Separate standard options from "Other" values
+                            const standardValues: string[] = [];
+                            let otherValue: string | null = null;
+
+                            answer.forEach((val: string) => {
+                                if (optionsSet.has(val)) {
+                                    standardValues.push(val);
+                                } else {
+                                    // Found a value not in options -> must be "Other"
+                                    // Note: If multiple "Other" values exists (rare), last one wins
+                                    otherValue = val;
+                                }
+                            });
+
+                            // If we have an "Other" value, we need to send __other_option__ + the text
+                            // BUT since submissionPayload[key] overwrites, we need to handle arrays carefully
+                            // The backend handles arrays by appending multiple entries.
+
+                            if (otherValue) {
+                                // Add standard values
+                                standardValues.push("__other_option__");
+
+                                // Send the actual text response in a separate field
+                                // Google Forms typically uses entry.ID.other_option_response
+                                submissionPayload[`${q.entryId}.other_option_response`] = otherValue;
+                            }
+
+                            finalAnswer = standardValues.length > 0 ? standardValues : answer;
+                            if (otherValue && standardValues.length === 0) {
+                                // Only "Other" was selected
+                                finalAnswer = ["__other_option__"];
+                            }
+                        } else {
+                            // Radio/Dropdown: Check if single value is in options
+                            const strVal = String(answer);
+                            if (!optionsSet.has(strVal)) {
+                                // Value is NOT in options -> Treat as "Other"
+                                finalAnswer = "__other_option__";
+                                submissionPayload[`${q.entryId}.other_option_response`] = strVal;
+                            }
+                        }
+                    }
+
+                    submissionPayload[q.entryId] = finalAnswer;
+                    console.log(`  -> Submitting: entry.${q.entryId} = "${JSON.stringify(finalAnswer).substring(0, 30)}..."` +
+                        (submissionPayload[`${q.entryId}.other_option_response`] ? ` [Other: "${submissionPayload[`${q.entryId}.other_option_response`]}"]` : ""));
                 }
 
                 // Handle Grid Questions
@@ -309,7 +513,9 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                         const rowVal = gridAnswer[row.id];
                         if (rowVal !== undefined && row.entryId) {
                             submissionPayload[row.entryId] = rowVal;
-                            console.log(`  -> Grid Row: entry.${row.entryId} = "${rowVal}"`);
+                            console.log(`  -> Grid Row SUBMIT: entry.${row.entryId} = "${rowVal}"`);
+                        } else {
+                            console.warn(`  -> Grid Row WARNING: Missing EntryID for row "${row.label}" (id: ${row.id}), val: ${rowVal}`);
                         }
                     });
                 }
@@ -323,6 +529,8 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
             console.log("Submission Payload:", submissionPayload);
 
 
+            console.log("=== FINAL PAYLOAD KEYS ===");
+            console.log(Object.keys(submissionPayload));
             console.log("=== FINAL PAYLOAD ===");
             console.log(JSON.stringify(submissionPayload, null, 2));
         }
@@ -365,6 +573,8 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
             setSubmitting(false);
         }
     };
+
+
 
     // Restore responses after OAuth redirect and AUTO-SUBMIT
     useEffect(() => {
@@ -494,7 +704,10 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
         const afterStart = questionNumber >= range.start;
         const beforeEnd = range.end === null || questionNumber < range.end;
 
-        return afterStart && beforeEnd;
+        // Also show questions in the common ending section (shown to everyone)
+        const isCommonEnding = questionNumber >= COMMON_ENDING_START;
+
+        return (afterStart && beforeEnd) || isCommonEnding;
     };
 
     // Check overall form validity
@@ -1086,6 +1299,9 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                         )}
                     </div>
 
+                    {/* Quick Test Actions - Only in Dev */}
+             
+
                     {/* Type Toggle - Segmented Control */}
                     <div className="shrink-0">
                         <div className="inline-flex p-1 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
@@ -1111,6 +1327,8 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                     </div>
                 </div>
             </div>
+
+
 
             {/* Questions */}
             <div className="p-6 sm:p-8">
@@ -1157,49 +1375,72 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                         visibleCount++;
                         const questionNumber = visibleCount;
 
-                        return (
+                        // Check if we need to inject a frontend section header BEFORE this question
+                        const frontendSection = FRONTEND_SECTIONS[question.label];
+                        // Only show section if showFor matches current major (or showFor is not specified)
+                        const shouldShowSection = frontendSection &&
+                            (!frontendSection.showFor || frontendSection.showFor === selectedMajor);
+                        const sectionHeader = shouldShowSection ? (
                             <div
-                                key={`${question.id}-${index}`}
-                                className="py-6"
+                                key={`frontend-section-${index}`}
+                                className="pt-12 pb-6 mt-6 first:mt-0"
                             >
-                                <label className="block mb-5">
-                                    <div className="flex items-baseline gap-3 mb-2">
-                                        <span className="text-sm font-bold text-[#007b8a] dark:text-[#007b8a] uppercase tracking-wider shrink-0">
-                                            Q{questionNumber}
-                                        </span>
-                                        <h4 className="text-xl font-medium text-zinc-900 dark:text-white leading-snug">
-                                            {question.label}
-                                            {question.required && <span className="text-red-500 ml-1" title="Required">*</span>}
-                                        </h4>
-                                    </div>
-                                    {question.description && (
-                                        <div className="ml-0 sm:ml-9 mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                                            <ReactMarkdown
-                                                components={{
-                                                    p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
-                                                    a: ({ node, ...props }) => <a className="text-[#007b8a] hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
-                                                    ul: ({ node, ...props }) => <ul className="list-disc pl-4 mb-2 space-y-1" {...props} />,
-                                                    ol: ({ node, ...props }) => <ol className="list-decimal pl-4 mb-2 space-y-1" {...props} />,
-                                                    strong: ({ node, ...props }) => <strong className="font-bold text-zinc-700 dark:text-zinc-300" {...props} />,
-                                                }}
-                                            >
-                                                {question.description}
-                                            </ReactMarkdown>
+                                <div>
+                                    <h3 className="text-2xl md:text-3xl font-bold text-zinc-900 dark:text-white tracking-tight">
+                                        {frontendSection.title}
+                                    </h3>
+                                    {frontendSection.description && (
+                                        <div className="mt-3 text-base text-zinc-600 dark:text-zinc-400 max-w-2xl leading-relaxed">
+                                            {frontendSection.description}
                                         </div>
-                                    )}
-                                </label>
-                                <div className="ml-0 sm:ml-9">
-                                    {renderQuestion(question)}
-                                    {validationErrors[question.id] && (
-                                        <p className="mt-2 text-sm text-red-500 font-medium animate-pulse flex items-center gap-1">
-                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                            </svg>
-                                            {validationErrors[question.id]}
-                                        </p>
                                     )}
                                 </div>
                             </div>
+                        ) : null;
+
+                        return (
+                            <React.Fragment key={`${question.id}-${index}`}>
+                                {sectionHeader}
+                                <div className="py-6">
+                                    <label className="block mb-5">
+                                        <div className="flex items-baseline gap-3 mb-2">
+                                            <span className="text-sm font-bold text-[#007b8a] dark:text-[#007b8a] uppercase tracking-wider shrink-0">
+                                                Q{questionNumber}
+                                            </span>
+                                            <h4 className="text-xl font-medium text-zinc-900 dark:text-white leading-snug">
+                                                {question.label}
+                                                {question.required && <span className="text-red-500 ml-1" title="Required">*</span>}
+                                            </h4>
+                                        </div>
+                                        {question.description && (
+                                            <div className="ml-0 sm:ml-9 mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                                                <ReactMarkdown
+                                                    components={{
+                                                        p: ({ node, ...props }) => <p className="mb-2 last:mb-0" {...props} />,
+                                                        a: ({ node, ...props }) => <a className="text-[#007b8a] hover:underline" target="_blank" rel="noopener noreferrer" {...props} />,
+                                                        ul: ({ node, ...props }) => <ul className="list-disc pl-4 mb-2 space-y-1" {...props} />,
+                                                        ol: ({ node, ...props }) => <ol className="list-decimal pl-4 mb-2 space-y-1" {...props} />,
+                                                        strong: ({ node, ...props }) => <strong className="font-bold text-zinc-700 dark:text-zinc-300" {...props} />,
+                                                    }}
+                                                >
+                                                    {question.description}
+                                                </ReactMarkdown>
+                                            </div>
+                                        )}
+                                    </label>
+                                    <div className="ml-0 sm:ml-9">
+                                        {renderQuestion(question)}
+                                        {validationErrors[question.id] && (
+                                            <p className="mt-2 text-sm text-red-500 font-medium animate-pulse flex items-center gap-1">
+                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                </svg>
+                                                {validationErrors[question.id]}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            </React.Fragment>
                         );
                     });
                 })()}

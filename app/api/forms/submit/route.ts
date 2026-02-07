@@ -141,6 +141,15 @@ export async function POST(req: NextRequest) {
             }
         });
 
+        // DEBUG: Log exactly what we're sending to Google Forms
+        console.log("=== GOOGLE FORMS SUBMISSION DEBUG ===");
+        console.log("Submit URL:", `https://docs.google.com/forms/d/e/${publishedFormId}/formResponse`);
+        console.log("URLSearchParams entries:");
+        for (const [key, value] of submitData.entries()) {
+            console.log(`  ${key} = ${value}`);
+        }
+        console.log("Full query string length:", submitData.toString().length);
+
         // ============================================
         // SUBMIT TO FORMS (Primary - must succeed)
         // ============================================
@@ -155,9 +164,11 @@ export async function POST(req: NextRequest) {
         const formsSuccess = formSubmitResponse.ok || formSubmitResponse.status === 302 || formSubmitResponse.status === 303;
 
         if (!formsSuccess) {
+            const errorText = await formSubmitResponse.text();
             console.error("Google Forms submission failed:", formSubmitResponse.status);
+            console.error("Response body:", errorText);
             return NextResponse.json(
-                { error: "Form submission failed" },
+                { error: "Form submission failed", details: errorText },
                 { status: 500 }
             );
         }

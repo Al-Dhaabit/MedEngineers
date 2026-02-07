@@ -31,43 +31,36 @@ export async function getPublicEntryIds(publishedId: string): Promise<Map<string
                         mapping.set(key, existing);
                     };
 
-                    // Standard questions: item[4][0][0] is ID
-                    if (answerData && answerData[0] && answerData[0][0]) {
-                        const firstID = answerData[0][0];
-                        // If firstID is numeric, it's likely a simple question
-                        if (typeof firstID === 'number' || (typeof firstID === 'string' && /^\d+$/.test(firstID))) {
-                            console.log(`  -> Simple ID: ${firstID}`);
-                            appendToMap(title, String(firstID));
-                        }
-                    }
+                    // Determine if this is a GRID question first
+                    let isGrid = false;
+                    const rowMap: Record<string, string> = {};
 
-                    // Grid detection: Check if answerData looks like rows
                     if (Array.isArray(answerData) && answerData.length > 1) {
-                        const rowMap: Record<string, string> = {};
-                        let isGrid = false;
-
-                        answerData.forEach((row: any, rowIdx: number) => {
-                            // Log first few rows to understand structure
-                            /* if (rowIdx < 3) {
-                                console.log(`  Row ${rowIdx} structure:`, JSON.stringify(row).substring(0, 200));
-                            } */
-
+                        answerData.forEach((row: any) => {
                             // CORRECT Structure: [EntryID, [[columns]], 0, ["Row Label"], ...]
-                            // row[0] = Entry ID (number)
-                            // row[3] = Row Label (as array, e.g. ["Section Titles"])
                             if (Array.isArray(row) && row.length >= 4 && Array.isArray(row[3])) {
                                 const rowEntryId = row[0];
                                 const rowLabel = row[3][0];
                                 if (rowLabel && rowEntryId) {
                                     rowMap[rowLabel] = String(rowEntryId);
                                     isGrid = true;
-                                    // console.log(`  -> Grid row "${rowLabel}": ${rowEntryId}`);
                                 }
                             }
                         });
+                    }
 
-                        if (isGrid) {
-                            appendToMap(title, rowMap);
+                    if (isGrid) {
+                        appendToMap(title, rowMap);
+                        console.log(`  -> Detected Grid: "${title}" with ${Object.keys(rowMap).length} rows`);
+                    } else {
+                        // Standard question ID extraction
+                        // item[4][0][0] is usually the ID
+                        if (answerData && answerData[0] && answerData[0][0]) {
+                            const firstID = answerData[0][0];
+                            if (typeof firstID === 'number' || (typeof firstID === 'string' && /^\d+$/.test(firstID))) {
+                                console.log(`  -> Simple ID: ${title} = ${firstID}`);
+                                appendToMap(title, String(firstID));
+                            }
                         }
                     }
                 });

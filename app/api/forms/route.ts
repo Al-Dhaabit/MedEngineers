@@ -79,6 +79,10 @@ export async function GET(req: Request) {
                 if (!item.questionItem && !item.questionGroupItem) {
                     // This is a section header - include it with a special type
                     if (title) {
+                        console.log(`\n=== SECTION HEADER FOUND ===`);
+                        console.log(`Title: "${title}"`);
+                        console.log(`Description: "${item.description || "(none)"}"`);
+
                         formData.questions.push({
                             id: `header_${item.itemId || Math.random().toString(36).slice(2)}`,
                             type: "section_header",
