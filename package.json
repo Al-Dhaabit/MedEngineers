@@ -6,14 +6,15 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "set-admin": "tsx scripts/setAdmin.ts"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
     "@tanstack/react-table": "^8.21.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "dotenv": "^17.2.3",
+    "dotenv": "^17.2.4",
     "firebase": "^12.8.0",
     "firebase-admin": "^13.6.0",
     "googleapis": "^170.1.0",

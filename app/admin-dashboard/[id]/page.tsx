@@ -30,6 +30,9 @@ type CompetitorDetails = {
     updatedAt: Timestamp;
 };
 
+// Add at the top of the file
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 async function getCompetitorDetails(id: string): Promise<CompetitorDetails | null> {
     try {
@@ -98,8 +101,8 @@ export default async function CompetitorDetailPage({
                 {/* Responses */}
                 <section className="bg-card border border-border rounded-lg p-6">
                     <h2 className="text-xl font-semibold mb-4 text-brand-teal">Skill set AND Experience & Portfolio</h2>
-                    <div className="space-y-4">
-                        <LongTextItem label="Skill Set" value={competitor.skillSet} />
+                    <div className="space-y-8">
+                        <DetailItem label="Skill Set" value={competitor.skillSet} />
                         <div className="space-y-3">
                             <DetailItem
                                 label="LinkedIn"
