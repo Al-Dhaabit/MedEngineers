@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { CustomApplicationForm } from "./CustomApplicationForm";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { auth } from "@/lib/Firebase";
 
 type UserStatus = "guest" | "pending" | "approved" | "domain_ai";
 
@@ -31,6 +33,40 @@ interface SubmissionResult {
 export function RegistrationSection() {
   // Mock state to demonstrate the flow. In a real app, this comes from the backend.
   const [status, setStatus] = useState<UserStatus>("guest");
+
+  // Check if user has submitted form or not using onAuthStateChange
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          // Send the UID to check against your collections
+          const res = await fetch("/api/user-status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ uid: user.uid }),
+          });
+
+          const data = await res.json();
+          // If the API confirms submission, update the status
+          if (data.status === true) {
+            setStatus("pending");
+          } else {
+            setStatus("guest");
+          }
+        } catch (error) {
+          console.error("Auth check failed", error);
+        }
+      } else {
+        setStatus("guest");
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Handle logout
+  const handleLogout = () => {
+    signOut(auth);
+  };
 
   // Domain AI state
   const [domainLoading, setDomainLoading] = useState(false);
@@ -129,7 +165,9 @@ export function RegistrationSection() {
     <section id="registration" className="py-24 bg-white dark:bg-zinc-950">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
 
-        {/* DEV ONLY: State Toggles to visualize the flow */}
+
+        {/* COMMENTED OUT THE DEV SECTION -- BY AHMAD*/}
+        {/* DEV ONLY: State Toggles to visualize the flow
         <div className="mb-12 flex flex-wrap justify-center gap-4 p-4 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 w-fit mx-auto">
           <span className="text-xs font-mono uppercase text-zinc-500 self-center">Dev Preview:</span>
           {(["guest", "pending", "approved"] as UserStatus[]).map((s) => (
@@ -145,10 +183,10 @@ export function RegistrationSection() {
             </button>
           ))}
 
-          {/* Divider */}
+          Divider
           <div className="w-px h-6 bg-zinc-300 dark:bg-zinc-700 self-center mx-2" />
 
-          {/* Domain AI Button */}
+          Domain AI Button
           <button
             onClick={() => setStatus("domain_ai")}
             className={`px-3 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 ${status === "domain_ai"
@@ -158,7 +196,7 @@ export function RegistrationSection() {
           >
             <span>🧠</span> Domain AI
           </button>
-        </div>
+        </div> */}
 
         {/* 4. DOMAIN AI VIEW: Mock Admin Dashboard */}
         {status === "domain_ai" && (
@@ -437,6 +475,7 @@ export function RegistrationSection() {
             <div className="mt-8 p-4 rounded-lg bg-zinc-50 dark:bg-zinc-900 inline-block text-left text-sm text-zinc-500">
               <p><strong>Status:</strong> <span className="text-yellow-600 dark:text-yellow-500 font-semibold">Pending Review</span></p>
               <p suppressHydrationWarning><strong>Applied:</strong> {new Date().toLocaleDateString()}</p>
+              <p><button onClick={() => handleLogout()} className="font-semibold hover:underline hover:cursor-pointer">Logout</button></p>
             </div>
           </div>
         )}
