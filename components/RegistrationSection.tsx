@@ -33,6 +33,7 @@ interface SubmissionResult {
 export function RegistrationSection() {
   // Mock state to demonstrate the flow. In a real app, this comes from the backend.
   const [status, setStatus] = useState<UserStatus>("guest");
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   // Check if user has submitted form or not using onAuthStateChange
   useEffect(() => {
@@ -50,18 +51,62 @@ export function RegistrationSection() {
           // If the API confirms submission, update the status
           if (data.status === true) {
             setStatus("pending");
+
+            // Store user in a state
+            setCurrentUser(user);
+
           } else {
             setStatus("guest");
+            setCurrentUser(null);
           }
         } catch (error) {
           console.error("Auth check failed", error);
+          setCurrentUser(null);
         }
       } else {
         setStatus("guest");
+        setCurrentUser(null);
       }
     });
     return () => unsubscribe();
   }, []);
+
+  // Handle payment
+  const handlePayment = async () => {
+    if (!currentUser?.uid) {
+      alert("Authentication error. Please refresh and try again.");
+      return;
+    }
+    const currentUid = currentUser.uid; // Get UID directly from the Auth instance
+
+    if (!currentUid) {
+      alert("Authentication error. Please refresh and try again.");
+      return;
+    }
+    try {
+      const res = await fetch("api/payment/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid: currentUid
+        }),
+      });
+
+      // 1. You MUST parse the body to get the actual data out of the ReadableStream
+      const data = await res.json();
+
+      // 2. Now 'data' contains the { url: "..." } from your API
+      if (data.url) {
+        console.log("Redirecting to Ticket Tailor:", data.url);
+        window.location.href = data.url; // This performs the redirect
+      } else if (data.error) {
+        console.error("API Error:", data.error);
+        alert(`Error: ${data.error}`);
+      }
+    } catch (error) {
+      console.error("Payment generation failed", error);
+    }
+  }
 
   // Handle logout
   const handleLogout = () => {
@@ -167,7 +212,7 @@ export function RegistrationSection() {
 
 
         {/* COMMENTED OUT THE DEV SECTION -- BY AHMAD*/}
-        {/* DEV ONLY: State Toggles to visualize the flow
+        {/* DEV ONLY: State Toggles to visualize the flow */}
         <div className="mb-12 flex flex-wrap justify-center gap-4 p-4 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 w-fit mx-auto">
           <span className="text-xs font-mono uppercase text-zinc-500 self-center">Dev Preview:</span>
           {(["guest", "pending", "approved"] as UserStatus[]).map((s) => (
@@ -183,10 +228,10 @@ export function RegistrationSection() {
             </button>
           ))}
 
-          Divider
+
           <div className="w-px h-6 bg-zinc-300 dark:bg-zinc-700 self-center mx-2" />
 
-          Domain AI Button
+          {/* Domain AI Button */}
           <button
             onClick={() => setStatus("domain_ai")}
             className={`px-3 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 ${status === "domain_ai"
@@ -196,7 +241,7 @@ export function RegistrationSection() {
           >
             <span>🧠</span> Domain AI
           </button>
-        </div> */}
+        </div>
 
         {/* 4. DOMAIN AI VIEW: Mock Admin Dashboard */}
         {status === "domain_ai" && (
@@ -511,7 +556,7 @@ export function RegistrationSection() {
                   <p className="text-zinc-500 dark:text-zinc-400 italic mb-4">[Ticket Tailor Widget Loads Here]</p>
                   <button
                     className="inline-flex items-center gap-2 px-6 py-3 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-md font-semibold hover:opacity-90"
-                    onClick={() => alert("Launching Ticket Tailor Checkout...")}
+                    onClick={() => handlePayment()}
                   >
                     Purchase Ticket ($25)
                   </button>
