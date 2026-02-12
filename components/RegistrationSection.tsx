@@ -1,9 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { CustomApplicationForm } from "./CustomApplicationForm";
+import { db } from "@/lib/Firebase";
+import { doc, onSnapshot } from "firebase/firestore";
 
-type UserStatus = "guest" | "pending" | "approved" | "domain_ai";
+type UserStatus = "guest" | "pending" | "approved" | "rejected" | "domain_ai";
 
 // Domain recommendation types
 interface DomainScore {
@@ -29,14 +32,48 @@ interface SubmissionResult {
 }
 
 export function RegistrationSection() {
-  // Mock state to demonstrate the flow. In a real app, this comes from the backend.
+  const { data: session } = useSession();
   const [status, setStatus] = useState<UserStatus>("guest");
 
   // Domain AI state
   const [domainLoading, setDomainLoading] = useState(false);
   const [domainResults, setDomainResults] = useState<SubmissionResult[]>([]);
   const [domainError, setDomainError] = useState<string | null>(null);
-  const [debugInfo, setDebugInfo] = useState<any>(null);
+
+  // Real-time status sync from Firestore
+  useEffect(() => {
+    if (!session?.user?.email) {
+      setStatus("guest");
+      return;
+    }
+
+    // Since we don't know if the user is a competitor or attendee here, 
+    // we listen to both potential locations. The submission logic uses UID as doc ID.
+    const uid = (session as any).user?.id || (session as any).uid;
+
+    if (!uid) return;
+
+    // Listen to Competitors
+    const unsubCompetitor = onSnapshot(doc(db, "competitors", uid), (doc) => {
+      if (doc.exists()) {
+        const data = doc.data();
+        if (data.status) setStatus(data.status as UserStatus);
+      }
+    });
+
+    // Listen to Attendees
+    const unsubAttendee = onSnapshot(doc(db, "attendees", uid), (doc) => {
+      if (doc.exists()) {
+        const data = doc.data();
+        if (data.status) setStatus(data.status as UserStatus);
+      }
+    });
+
+    return () => {
+      unsubCompetitor();
+      unsubAttendee();
+    };
+  }, [session]);
 
   // Fetch data when switching to domain_ai view
   useEffect(() => {
@@ -132,7 +169,7 @@ export function RegistrationSection() {
         {/* DEV ONLY: State Toggles to visualize the flow */}
         <div className="mb-12 flex flex-wrap justify-center gap-4 p-4 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 w-fit mx-auto">
           <span className="text-xs font-mono uppercase text-zinc-500 self-center">Dev Preview:</span>
-          {(["guest", "pending", "approved"] as UserStatus[]).map((s) => (
+          {(["guest", "pending", "approved", "rejected"] as UserStatus[]).map((s) => (
             <button
               key={s}
               onClick={() => setStatus(s)}
@@ -425,7 +462,7 @@ export function RegistrationSection() {
                 </svg>
               </div>
             </div>
-            <h2 className="text-4xl sm:text-5xl font-black tracking-[-0.05em] uppercase text-[#007b8a] mb-4">
+            <h2 className="text-4xl sm:text-5xl font-black tracking-[-0.05em] uppercase text-yellow-600 mb-4">
               Reviewing
             </h2>
             <p className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">
@@ -441,7 +478,29 @@ export function RegistrationSection() {
           </div>
         )}
 
-        {/* 3. APPROVED VIEW: Ticket Tailor Widget */}
+        {/* 3. REJECTED VIEW: Status Dashboard */}
+        {status === "rejected" && (
+          <div className="mx-auto max-w-2xl text-center py-16 animate-in zoom-in-95 duration-500">
+            <div className="mb-6 flex justify-center">
+              <div className="h-20 w-20 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-10 h-10 text-red-600 dark:text-red-500">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+            </div>
+            <h2 className="text-4xl sm:text-5xl font-black tracking-[-0.05em] uppercase text-red-600 mb-4">
+              Update
+            </h2>
+            <p className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">
+              Application Not Approved
+            </p>
+            <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-300">
+              We appreciate your interest in MedHack 2026. Unfortunately, we are unable to approve your application at this time due to high demand and limited capacity.
+            </p>
+          </div>
+        )}
+
+        {/* 4. APPROVED VIEW: Ticket Tailor Widget */}
         {status === "approved" && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
             <div className="mx-auto max-w-2xl text-center mb-16">
@@ -467,15 +526,29 @@ export function RegistrationSection() {
               <div className="bg-[#007b8a] px-6 py-4">
                 <h3 className="text-white font-semibold">Official Ticket Counter</h3>
               </div>
-              <div className="p-10 text-center">
-                <div className="p-12 border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl bg-zinc-50 dark:bg-black/20">
-                  <p className="text-zinc-500 dark:text-zinc-400 italic mb-4">[Ticket Tailor Widget Loads Here]</p>
-                  <button
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-md font-semibold hover:opacity-90"
-                    onClick={() => alert("Launching Ticket Tailor Checkout...")}
-                  >
-                    Purchase Ticket ($25)
-                  </button>
+              <div className="p-4 sm:p-10 text-center">
+                {/* Ticket Tailor Widget Container */}
+                <div className="tt-widget">
+                  <div className="tt-widget-fallback">
+                    <p className="text-zinc-500 dark:text-zinc-400 italic mb-4">Loading tickets...</p>
+                    <a
+                      href="https://www.tickettailor.com/all-tickets/medengineers/?ref=website_widget"
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-[#007b8a] text-white rounded-md font-semibold hover:opacity-90"
+                      target="_blank"
+                    >
+                      View Tickets on Ticket Tailor
+                    </a>
+                  </div>
+                  <script
+                    src="https://cdn.tickettailor.com/js/widgets/min/widget.js"
+                    data-url="https://www.tickettailor.com/all-tickets/medengineers/?ref=website_widget"
+                    data-type="inline"
+                    data-inline-id="tt-widget"
+                    data-checkout-modal="true"
+                    data-bg-fill="true"
+                    data-inherit-ref-from-url-param=""
+                    data-ref="website_widget"
+                  ></script>
                 </div>
               </div>
             </div>

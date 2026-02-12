@@ -49,6 +49,7 @@ export async function POST(req: NextRequest) {
                     emiratesID: responses["1368274746"] || "",
                     major: responses["1740303904"] || "",
                     paid: false,
+                    status: "pending",
                     submittedAt: admin.firestore.FieldValue.serverTimestamp(),
                 }, { merge: true });
 
@@ -97,6 +98,7 @@ export async function POST(req: NextRequest) {
                         submittedAt: admin.firestore.FieldValue.serverTimestamp(),
                         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                         isPayed: false,
+                        status: "pending",
                         domain: "",
                         attended: false,
                     }, { merge: true });
