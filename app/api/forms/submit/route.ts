@@ -230,6 +230,7 @@ export async function POST(req: NextRequest) {
                         submittedAt: admin.firestore.FieldValue.serverTimestamp(),
                         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                         isPayed: false,
+                        submitted: true,
                         domain: "",
                         attended: false,
                     }, { merge: true });
@@ -258,6 +259,7 @@ export async function POST(req: NextRequest) {
                         submittedAt: admin.firestore.FieldValue.serverTimestamp(),
                         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                         isPayed: false,
+                        submitted: true,
                         status: "pending",
                         domain: "",
                         attended: false,
