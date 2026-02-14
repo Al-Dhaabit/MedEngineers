@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { useSession, signIn, signOut } from "next-auth/react";
+import { useAuth } from "@/lib/AuthContext";
 import ReactMarkdown from "react-markdown";
+import { storeFormData, retrieveFormData, clearStoredData } from "@/lib/secureStorage";
+import { createCSRFToken, validateCSRFToken, clearCSRFToken, getStoredCSRFToken } from "@/lib/csrfProtection";
 
 
 // Type definitions for form data
@@ -34,7 +36,7 @@ interface CustomApplicationFormProps {
 }
 
 export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationFormProps) {
-    const { data: session, status } = useSession();
+    const { user, loading: authLoading, signInWithGoogle, signOut } = useAuth();
     const [formData, setFormData] = useState<FormData | null>(null);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
@@ -44,6 +46,7 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
     const [responses, setResponses] = useState<FormResponses>({});
+    const [touched, setTouched] = useState<Record<string, boolean>>({});
     const [formType, setFormType] = useState<"competitor" | "attendee">("competitor");
     const [selectedMajor, setSelectedMajor] = useState<string | null>(null);
     const [validationErrors, setValidationErrors] = useState<Record<string, string | null>>({});
@@ -299,13 +302,26 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
         const valString = String(value).trim();
         const labelLower = question.label.toLowerCase();
 
-        // 2. Emirates ID Validation (numbers and dashes only)
-        if (labelLower.includes("emirates id")) {
-            // Enforcement removed as per request
-            return null;
+        // 2. Full Name Validation
+        if (labelLower.includes("full name")) {
+            const namePattern = /^[a-zA-Z\s'-]+$/;
+            if (!namePattern.test(valString)) {
+                return "Full name can only contain letters, spaces, hyphens, and apostrophes";
+            }
+            if (valString.length < 2) {
+                return "Full name must be at least 2 characters";
+            }
         }
 
-        // 3. Phone Number Validation (allows +, -, spaces, and numbers)
+        // 3. Emirates ID Validation (Exactly 15 digits)
+        if (labelLower.includes("emirates id")) {
+            const digitsOnly = valString.replace(/\D/g, "");
+            if (digitsOnly.length !== 15) {
+                return "Emirates ID must be exactly 15 digits";
+            }
+        }
+
+        // 4. Phone Number Validation (allows +, -, spaces, and numbers)
         if (
             labelLower.includes("phone") ||
             labelLower.includes("whatsapp") ||
@@ -318,12 +334,12 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
             }
         }
 
-        // 4. Email Validation
+        // 5. Email Validation
         if (labelLower.includes("email")) {
             if (!isValidEmail(valString)) return "Please enter a valid email address";
         }
 
-        // 5. Generic Number Validation (for other numeric fields)
+        // 6. Generic Number Validation (for other numeric fields)
         if (
             (question.type === "short_answer" && labelLower.includes("number") && !labelLower.includes("contact number") && !labelLower.includes("phone")) ||
             labelLower.includes("gpa") ||
@@ -332,7 +348,7 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
             if (!isValidNumber(valString)) return "Please enter a valid number";
         }
 
-        // 6. Min/Max Logic (for number inputs)
+        // 7. Min/Max Logic (for number inputs)
         if (isValidNumber(valString) && (question.min !== undefined || question.max !== undefined)) {
             const num = Number(valString);
             if (question.min !== undefined && num < question.min) return `Minimum value is ${question.min}`;
@@ -471,6 +487,27 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
     };
 
     const handleSubmit = async () => {
+        if (!isFormValid) {
+            // Mark all visible questions as touched to reveal errors
+            const allTouched: Record<string, boolean> = {};
+            if (formData) {
+                formData.questions.forEach((q, idx) => {
+                    if (isQuestionVisible(idx)) {
+                        allTouched[q.id] = true;
+                    }
+                });
+            }
+            setTouched(allTouched);
+            setError("Please complete all required fields correctly before submitting.");
+
+            // Scroll to the first error
+            const firstErrorElement = document.querySelector('.text-red-500');
+            if (firstErrorElement) {
+                firstErrorElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            return;
+        }
+
         // Transform responses to use Entry IDs instead of React Keys
         const submissionPayload: Record<string, unknown> = {};
 
@@ -579,11 +616,24 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
             console.log(JSON.stringify(submissionPayload, null, 2));
         }
 
-        // If not signed in, trigger OAuth (store the TRANSFORMED payload)
-        if (!session) {
-            sessionStorage.setItem("pendingFormPayload", JSON.stringify(submissionPayload));
-            sessionStorage.setItem("pendingFormType", formType);
-            signIn("google");
+        // If not signed in, trigger OAuth (store TRANSFORMED payload)
+        if (!user) {
+            // Clear any existing data first
+            clearStoredData();
+            clearCSRFToken();
+
+            // Store securely with integrity checks
+            const stored = storeFormData(submissionPayload, formType);
+            if (!stored) {
+                setError("Failed to prepare form for submission. Please try again.");
+                return;
+            }
+
+            // Create CSRF token for OAuth flow
+            const csrfToken = createCSRFToken();
+
+            console.log("Form data stored securely for post-OAuth submission");
+            await signInWithGoogle();
             return;
         }
 
@@ -597,18 +647,44 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
             const res = await fetch("/api/forms/submit", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ responses: submissionPayload, type: formType }),
+                body: JSON.stringify({
+                    responses: submissionPayload,
+                    type: formType,
+                    idToken: await user.getIdToken()
+                }),
             });
 
             if (!res.ok) {
                 const data = await res.json();
-                console.error("Submission failed details:", data);
-                // If we have details, log them clearly. 
-                // We keep the UI simple but ensure the console has the validation error.
-                throw new Error(data.error || "Failed to submit");
+                console.error("Submission failed - Status:", res.status);
+                console.error("Submission failed - Response:", data);
+
+                // Handle validation errors specifically
+                if (res.status === 400) {
+                    // Show specific validation error if available
+                    if (data.details && Array.isArray(data.details)) {
+                        const errorMessage = data.details.join('. ');
+                        setError(`Please fix the following issues: ${errorMessage}`);
+                    } else {
+                        setError(data.error || "Invalid form data. Please check your input and try again.");
+                    }
+                }
+                // Handle duplicate submission specifically
+                else if (res.status === 409) {
+                    setError("You have already submitted an application. Please check your email for status updates.");
+                }
+                // Handle rate limiting
+                else if (res.status === 429) {
+                    setError(data.error || "Too many requests. Please try again later.");
+                }
+                // Handle other errors
+                else {
+                    setError(data.error || "Failed to submit form. Please try again.");
+                }
+                setSubmitting(false);
+                return;
             }
 
-            setSuccess(true);
             onSubmitSuccess?.();
         } catch (err) {
             console.error("Submit error:", err);
@@ -622,51 +698,65 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
 
     // Restore responses after OAuth redirect and AUTO-SUBMIT
     useEffect(() => {
-        if (session && status === "authenticated") {
-            const pendingPayload = sessionStorage.getItem("pendingFormPayload");
-            const pendingType = sessionStorage.getItem("pendingFormType");
+        if (user && !authLoading) {
+            const storedData = retrieveFormData();
 
-            if (pendingPayload) {
-                const payload = JSON.parse(pendingPayload);
+            if (storedData) {
+                const { payload, formType } = storedData;
+
+                // Validate CSRF token
+                const urlParams = new URLSearchParams(window.location.search);
+                let csrfToken = urlParams.get('csrf_token');
+
+                // For popup flows, the token won't be in the URL, so we check sessionStorage
+                if (!csrfToken) {
+                    csrfToken = getStoredCSRFToken();
+                }
+
+                if (!csrfToken || !validateCSRFToken(csrfToken)) {
+                    setError("Security validation failed. Please try submitting again.");
+                    clearStoredData();
+                    clearCSRFToken();
+                    return;
+                }
 
                 // POST AUTH SUBMISSION DATA CHECK
                 console.log("=== POST-AUTH SUBMISSION DATA ===");
-                console.log("User email:", session.user?.email);
+                console.log("User email:", user.email);
                 console.log("Recovered Payload:", payload);
 
                 // Clear storage immediately to prevent re-triggering
-                sessionStorage.removeItem("pendingFormPayload");
-                sessionStorage.removeItem("pendingFormType");
+                clearStoredData();
+                clearCSRFToken();
 
                 // Set form type for display
-                if (pendingType === "competitor" || pendingType === "attendee") {
-                    setFormType(pendingType);
+                if (formType === "competitor" || formType === "attendee") {
+                    setFormType(formType);
                 }
 
                 // Auto-submit immediately
                 setAutoSubmitting(true);
+
+                let submitTimeout: NodeJS.Timeout | null = null;
 
                 (async () => {
                     try {
                         setSubmitting(true);
                         setError(null);
 
+                        // Add timeout to handle cases where auto-submit might hang
+                        submitTimeout = setTimeout(() => {
+                            console.error("Auto-submit timeout - clearing state");
+                            setAutoSubmitting(false);
+                            setSubmitting(false);
+                            setError("Submission timed out. Please try submitting again.");
+                        }, 30000); // 30 second timeout
+
                         // Retrieve firebase ID token
                         let firebaseIdToken = null;
                         try {
-                            const { auth } = await import("@/lib/Firebase");
-                            const { GoogleAuthProvider, signInWithCredential } = await import("firebase/auth")
-
-                            const nextAuthIdToken = (session as any).idToken;
-
-                            // If Firebase isn't signed in, use the NextAuth access token to sign in
-                            if (!auth.currentUser && nextAuthIdToken) {
-                                const credential = GoogleAuthProvider.credential(nextAuthIdToken);
-                                await signInWithCredential(auth, credential);
-                            }
-
-                            // Get the token from Firebase
-                            firebaseIdToken = await auth.currentUser?.getIdToken(true);
+                            // Get the token directly from the current Firebase user
+                            firebaseIdToken = await user.getIdToken(true);
                         } catch (tokenError) {
                             console.error("Failed to get Firebase ID token", tokenError);
                         }
@@ -678,13 +768,22 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                             headers: { "Content-Type": "application/json" },
                             body: JSON.stringify({
                                 responses: payload,
-                                type: pendingType || "competitor",
+                                type: formType || "competitor",
                                 idToken: firebaseIdToken
                             }),
                         });
 
                         if (!res.ok) {
                             const data = await res.json();
+
+                            // Handle duplicate submission specifically
+                            if (res.status === 409 && data.error === "User already exists") {
+                                setError("You have already submitted an application. Please check your email for status updates.");
+                                setAutoSubmitting(false);
+                                setSubmitting(false);
+                                return;
+                            }
+
                             throw new Error(data.error || "Failed to submit");
                         }
 
@@ -696,6 +795,7 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
 
                             // Wait for fade out (300ms) then switch UI
                             setTimeout(() => {
+                                if (submitTimeout) clearTimeout(submitTimeout); // Clear the timeout
                                 setSuccess(true);
                                 onSubmitSuccess?.();
                                 setAutoSubmitting(false);
@@ -704,6 +804,7 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                             }, 300);
                         }, 2000);
                     } catch (err) {
+                        if (submitTimeout) clearTimeout(submitTimeout); // Clear the timeout on error
                         console.error("Auto-submit error:", err);
                         setError(err instanceof Error ? err.message : "Failed to submit form");
                         setAutoSubmitting(false);
@@ -713,7 +814,7 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                 })();
             }
         }
-    }, [session, status]);
+    }, [user, authLoading]);
 
     // Helper to determine if a question should be visible based on skip logic
     const isQuestionVisible = (index: number): boolean => {
@@ -758,6 +859,9 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
     useEffect(() => {
         if (!formData) return;
 
+        // This useEffect is for *displaying* validation state, not for triggering submission.
+        // The submission logic handles its own validation check.
+
         let valid = true;
 
         // Debug: Track why form is invalid
@@ -800,6 +904,7 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                         placeholder={question.placeholder || "Enter your answer..."}
                         value={(responses[question.id] as string) || ""}
                         onChange={(e) => updateResponse(question.id, e.target.value)}
+                        onBlur={() => setTouched(prev => ({ ...prev, [question.id]: true }))}
                         className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/50 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500 focus:ring-2 focus:ring-[#007b8a] focus:border-transparent transition-all outline-none"
                     />
                 );
@@ -820,6 +925,7 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                             rows={4}
                             value={text}
                             onChange={(e) => updateResponse(question.id, e.target.value)}
+                            onBlur={() => setTouched(prev => ({ ...prev, [question.id]: true }))}
                             className={`w-full px-4 py-3 rounded-xl border ${isOverLimit
                                 ? "border-red-500 ring-1 ring-red-500"
                                 : "border-zinc-200 dark:border-zinc-700"
@@ -872,6 +978,7 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                                                 } else {
                                                     updateResponse(question.id, option);
                                                 }
+                                                setTouched(prev => ({ ...prev, [question.id]: true }));
                                             }}
                                             className="sr-only"
                                         />
@@ -921,7 +1028,10 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                                         <input
                                             type="checkbox"
                                             checked={isChecked}
-                                            onChange={(e) => handleCheckboxChange(question.id, option, e.target.checked)}
+                                            onChange={(e) => {
+                                                handleCheckboxChange(question.id, option, e.target.checked);
+                                                setTouched(prev => ({ ...prev, [question.id]: true }));
+                                            }}
                                             className="sr-only"
                                         />
                                         {isChecked && (
@@ -942,7 +1052,11 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                     <div className="relative">
                         <select
                             value={(responses[question.id] as string) || ""}
-                            onChange={(e) => updateResponse(question.id, e.target.value)}
+                            onChange={(e) => {
+                                updateResponse(question.id, e.target.value);
+                                setTouched(prev => ({ ...prev, [question.id]: true }));
+                            }}
+                            onBlur={() => setTouched(prev => ({ ...prev, [question.id]: true }))}
                             className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/50 text-zinc-900 dark:text-white focus:ring-2 focus:ring-[#007b8a] focus:border-transparent transition-all outline-none appearance-none cursor-pointer"
                         >
                             <option value="" disabled>Select an option...</option>
@@ -971,7 +1085,10 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                                     <button
                                         key={num}
                                         type="button"
-                                        onClick={() => updateResponse(question.id, num)}
+                                        onClick={() => {
+                                            updateResponse(question.id, num);
+                                            setTouched(prev => ({ ...prev, [question.id]: true }));
+                                        }}
                                         className={`flex-1 py-3 rounded-xl border-2 font-medium transition-all ${responses[question.id] === num
                                             ? "bg-[#007b8a] border-[#007b8a] text-white"
                                             : "border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 hover:border-[#007b8a] hover:text-[#007b8a] dark:hover:text-[#007b8a]"
@@ -992,7 +1109,10 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                             <button
                                 key={star}
                                 type="button"
-                                onClick={() => updateResponse(question.id, star)}
+                                onClick={() => {
+                                    updateResponse(question.id, star);
+                                    setTouched(prev => ({ ...prev, [question.id]: true }));
+                                }}
                                 className="p-1 transition-transform hover:scale-110"
                             >
                                 <svg
@@ -1054,7 +1174,10 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                                                         <button
                                                             type="button"
                                                             // Pass rowId instead of rowLabel to handler
-                                                            onClick={() => handleGridChange(question.id, rowId, col, isCheckboxGrid)}
+                                                            onClick={() => {
+                                                                handleGridChange(question.id, rowId, col, isCheckboxGrid);
+                                                                setTouched(prev => ({ ...prev, [question.id]: true }));
+                                                            }}
                                                             className={`w-6 h-6 rounded-${isCheckboxGrid ? "md" : "full"} border-2 transition-all inline-flex items-center justify-center ${isSelected
                                                                 ? "bg-indigo-600 border-indigo-600 dark:bg-indigo-500 dark:border-indigo-500"
                                                                 : "border-zinc-300 dark:border-zinc-600 hover:border-indigo-400"
@@ -1087,6 +1210,7 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                         type="date"
                         value={(responses[question.id] as string) || ""}
                         onChange={(e) => updateResponse(question.id, e.target.value)}
+                        onBlur={() => setTouched(prev => ({ ...prev, [question.id]: true }))}
                         className="w-full max-w-xs px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/50 text-zinc-900 dark:text-white focus:ring-2 focus:ring-[#007b8a] focus:border-transparent transition-all outline-none"
                     />
                 );
@@ -1097,6 +1221,7 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                         type="time"
                         value={(responses[question.id] as string) || ""}
                         onChange={(e) => updateResponse(question.id, e.target.value)}
+                        onBlur={() => setTouched(prev => ({ ...prev, [question.id]: true }))}
                         className="w-full max-w-xs px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/50 text-zinc-900 dark:text-white focus:ring-2 focus:ring-[#007b8a] focus:border-transparent transition-all outline-none"
                     />
                 );
@@ -1352,19 +1477,6 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                             </ReactMarkdown>
                         </div>
 
-                        {session && (
-                            <div className="mt-4 flex items-center gap-3">
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400">
-                                    {session.user?.email}
-                                </span>
-                                <button
-                                    onClick={() => signOut()}
-                                    className="text-xs text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 transition-colors underline decoration-dotted"
-                                >
-                                    Sign out
-                                </button>
-                            </div>
-                        )}
                     </div>
 
                     {/* Quick Test Actions - Visible in both Dev and Prod */}
@@ -1535,7 +1647,7 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                                     </label>
                                     <div className="ml-0 sm:ml-9">
                                         {renderQuestion(question)}
-                                        {validationErrors[question.id] && (
+                                        {touched[question.id] && validationErrors[question.id] && (
                                             <p className="mt-2 text-sm text-red-500 font-medium animate-pulse flex items-center gap-1">
                                                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1569,7 +1681,7 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
                                 Submitting...
                             </>
-                        ) : session ? (
+                        ) : user ? (
                             <>
                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -1595,7 +1707,7 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                     </p>
                 )}
                 <p className="mt-3 text-center text-xs text-zinc-500 dark:text-zinc-400">
-                    {session
+                    {user
                         ? "Your application will be submitted to Google Forms"
                         : "You'll be asked to sign in with Google to submit your application"
                     }

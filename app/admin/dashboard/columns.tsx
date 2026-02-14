@@ -20,10 +20,8 @@ export const columns: ColumnDef<Competitor>[] = [
             const id = row.original.id;
             return (
                 <Link
-                    href={`/admin-dashboard/${id}`}
+                    href={`/admin/dashboard/${id}`}
                     className="text-brand-teal hover:underline font-medium"
-                    target="_blank"
-                    rel="noopener noreferrer"
                 >
                     {fullName}
                 </Link>

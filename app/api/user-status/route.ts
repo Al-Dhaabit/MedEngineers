@@ -1,56 +1,44 @@
-
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebaseAdmin";
 
 export async function POST(req: NextRequest) {
     try {
-        const { uid } = await req.json();
+        const body = await req.json();
+        const { uid } = body;
 
         if (!uid) {
-            return NextResponse.json({ error: "Missing UID" }, { status: 400 });
+            return NextResponse.json({ error: "uid is required" }, { status: 400 });
         }
 
-        console.log("Checking status for UID:", uid);
-
-        // Check attendees collection first
-        const attendeeDoc = await adminDb.collection("attendees").doc(uid).get();
-
-        if (attendeeDoc.exists) {
-            const data = attendeeDoc.data();
-            console.log("Found in attendees:", data);
-            return NextResponse.json({
-                status: true,
-                type: "attendee",
-                actualStatus: data?.status || "pending", // Default to pending if no status field
-                data: data
-            });
+        // 1. Check Attendees collection
+        const userDoc = await adminDb.collection("attendees").doc(uid).get();
+        if (userDoc.exists && userDoc.data()?.submitted === true) {
+            const userData = userDoc.data();
+            if (userData) {
+                return NextResponse.json({
+                    status: true,
+                    type: "attendee",
+                    actualStatus: userData.status || "pending"
+                }, { status: 200 });
+            }
         }
 
-        // Check competitors collection
+        // 2. Check Competitors collection
         const competitorDoc = await adminDb.collection("competitors").doc(uid).get();
-
-        if (competitorDoc.exists) {
-            const data = competitorDoc.data();
-            console.log("Found in competitors:", data);
-            return NextResponse.json({
-                status: true,
-                type: "competitor",
-                actualStatus: data?.status || "pending",
-                data: data
-            });
+        if (competitorDoc.exists && competitorDoc.data()?.submitted === true) {
+            const competitorData = competitorDoc.data();
+            if (competitorData) {
+                return NextResponse.json({
+                    status: true,
+                    type: "competitor",
+                    actualStatus: competitorData.status || "pending"
+                }, { status: 200 });
+            }
         }
 
-        console.log("User not found in any collection");
-        return NextResponse.json({
-            status: false,
-            message: "User not found"
-        });
-
+        return NextResponse.json({ status: false }, { status: 200 });
     } catch (error) {
-        console.error("Status check error:", error);
-        return NextResponse.json(
-            { error: "Internal server error" },
-            { status: 500 }
-        );
+        console.error("Error checking user submission status:", error);
+        return NextResponse.json({ error: "Failed to check status" }, { status: 500 });
     }
 }

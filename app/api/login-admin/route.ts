@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { adminAuth } from '@/lib/firebaseAdmin'
 import { cookies } from 'next/headers'
 
+// Session cookie duration: 5 days in milliseconds
+const SESSION_DURATION_MS = 60 * 60 * 24 * 5 * 1000
+
 export async function POST(request: NextRequest) {
     try {
         const { idToken } = await request.json()
@@ -18,13 +21,14 @@ export async function POST(request: NextRequest) {
             )
         }
 
-        // Create session cookie (expires in 5 days)
-        const expiresIn = 60 * 60 * 24 * 5 * 1000 // 5 days
-        const sessionCookie = await adminAuth.createSessionCookie(idToken, { expiresIn })
+        // Create session cookie
+        const sessionCookie = await adminAuth.createSessionCookie(idToken, { 
+            expiresIn: SESSION_DURATION_MS 
+        })
 
         const cookieStore = await cookies()
         cookieStore.set('session', sessionCookie, {
-            maxAge: expiresIn,
+            maxAge: SESSION_DURATION_MS / 1000, // Convert to seconds
             httpOnly: true,
             secure: process.env.NODE_ENV === 'production',
             path: '/',

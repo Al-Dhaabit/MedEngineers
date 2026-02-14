@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { CustomApplicationForm } from "./CustomApplicationForm";
 import { onAuthStateChanged, signOut, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
 import { TicketTailorWidget } from "@/components/TicketTailorWidget";
@@ -39,6 +39,7 @@ export function RegistrationSection() {
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const [statusCheckMessage, setStatusCheckMessage] = useState<string>("");
   const [hasCheckedStatus, setHasCheckedStatus] = useState(false);
+
 
   // Check if user has submitted form or not using onAuthStateChange
   useEffect(() => {
@@ -229,6 +230,22 @@ export function RegistrationSection() {
     }
   };
 
+  const handleCheckStatus = async () => {
+    setIsCheckingStatus(true);
+    setStatusCheckMessage(""); // Clear any previous messages
+    setHasCheckedStatus(false); // Reset check status
+    try {
+      await signInWithGoogle();
+      setHasCheckedStatus(true); // Mark that we performed a status check
+      // The useEffect will handle the status check after sign-in
+    } catch (error) {
+      console.error("Error checking status:", error);
+      setStatusCheckMessage("Failed to sign in. Please try again.");
+    } finally {
+      setIsCheckingStatus(false);
+    }
+  };
+
   const getDomainColor = (domain: string) => {
     switch (domain) {
       case "A": return { bg: "#e9456015", border: "#e94560", text: "#e94560", gradient: "from-red-500 to-pink-600" };
@@ -260,6 +277,35 @@ export function RegistrationSection() {
     <section id="registration" className="py-24 bg-white dark:bg-zinc-950">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
 
+        {/* Global User Header & Logout */}
+        {currentUser && (
+          <div className="mb-8 flex items-center justify-between p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-sm animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-full bg-[#007b8a]/10 flex items-center justify-center text-[#007b8a]">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-[#007b8a] uppercase tracking-wider">Signed in as</span>
+                <span className="text-sm font-medium text-zinc-900 dark:text-white truncate max-w-[150px] sm:max-w-none">
+                  {currentUser.displayName || currentUser.email}
+                </span>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              onClick={handleLogout}
+              className="h-9 px-4 rounded-full border-red-200 dark:border-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all text-xs font-bold uppercase tracking-wider"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              Logout
+            </Button>
+          </div>
+        )}
+
         {/* DEV ONLY: State Toggles to visualize the flow */}
         <div className="mb-12 flex flex-wrap justify-center gap-4 p-4 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 w-fit mx-auto">
           <span className="text-xs font-mono uppercase text-zinc-500 self-center">Dev Preview:</span>
@@ -276,7 +322,7 @@ export function RegistrationSection() {
             </button>
           ))}
 
-          {/* Divider */}
+
           <div className="w-px h-6 bg-zinc-300 dark:bg-zinc-700 self-center mx-2" />
 
           {/* Domain AI Button */}
@@ -687,10 +733,22 @@ export function RegistrationSection() {
             <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-300">
               Thanks for applying! Our team is reviewing your eligibility. We will notify you via email once a decision has been made.
             </p>
-            <div className="mt-8 p-4 rounded-lg bg-zinc-50 dark:bg-zinc-900 inline-block text-left text-sm text-zinc-500">
-              <p><strong>Status:</strong> <span className="text-yellow-600 dark:text-yellow-500 font-semibold">Pending Review</span></p>
-              <p suppressHydrationWarning><strong>Applied:</strong> {new Date().toLocaleDateString()}</p>
-            </div>
+
+            {/* User info and submission details */}
+            {currentUser && (
+              <div className="mt-8 space-y-4">
+                <div className="p-4 rounded-lg bg-zinc-50 dark:bg-zinc-900 inline-block text-left text-sm text-zinc-500">
+                  <p><strong>Applicant:</strong> {currentUser.displayName || currentUser.email}</p>
+                  <p><strong>Application Type:</strong> {currentUser.submissionType === 'attendee' ? 'Attendee' : 'Competitor'}</p>
+                  <p><strong>Status:</strong> <span className="text-yellow-600 dark:text-yellow-500 font-semibold">Pending Review</span></p>
+                  <p suppressHydrationWarning><strong>Applied:</strong> {new Date().toLocaleDateString()}</p>
+                </div>
+
+                <div className="text-xs text-zinc-400 dark:text-zinc-500">
+                  <p>This page automatically refreshes every 10 seconds to check for status updates.</p>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -709,11 +767,20 @@ export function RegistrationSection() {
                 You're In!
               </h2>
               <p className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-2xl">
-                Congratulations!
+                Congratulations, {currentUser?.displayName || 'Applicant'}!
               </p>
               <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-400">
                 Your application has been approved. Secure your ticket below to confirm your spot.
               </p>
+
+              {/* Application summary */}
+              {currentUser && (
+                <div className="mt-6 p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 inline-block text-left text-sm">
+                  <p className="text-green-800 dark:text-green-200">
+                    <strong>Application Type:</strong> {currentUser.submissionType === 'attendee' ? 'Attendee' : 'Competitor'}
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="mx-auto max-w-4xl bg-white rounded-3xl shadow-xl ring-1 ring-zinc-200 overflow-hidden">
@@ -722,12 +789,13 @@ export function RegistrationSection() {
               </div>
               <div className="p-6">
                 <TicketTailorWidget />
-              </div>
-            </div>
-          </div>
-        )}
+              </div >
+            </div >
+          </div >
+        )
+        }
 
-      </div>
-    </section>
+      </div >
+    </section >
   );
 }

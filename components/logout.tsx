@@ -1,21 +1,22 @@
 "use client"
 
 import { useRouter } from 'next/navigation'
-import { auth } from '@/lib/Firebase'
-import { signOut } from 'firebase/auth'
+import { useAuth } from '@/lib/AuthContext'
 
 export default function LogoutButton() {
     const router = useRouter()
+    const { signOut } = useAuth()
 
     const handleLogout = async () => {
         try {
             // Sign out from Firebase
-            await signOut(auth)
+            await signOut()
 
-            // Clear session cookie
-            await fetch('/api/logout', { method: 'POST' })
+            // Clear admin session cookie
+            await fetch('/api/logout-admin', { method: 'POST' })
 
-            router.push('/login')
+            // Redirect to admin login
+            router.push('/admin')
         } catch (error) {
             console.error('Logout error:', error)
         }

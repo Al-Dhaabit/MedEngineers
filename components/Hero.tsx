@@ -47,7 +47,7 @@ export function Hero() {
       {/* Background Image with Dark Overlay */}
       <div
         className="absolute inset-0 z-0 bg-cover bg-center"
-        style={{ backgroundImage: 'url(\"/images/bg_image.png\")' }}
+        style={{ backgroundImage: 'url("/images/bg_image.png")' }}
       >
         <div className="absolute inset-0 bg-black/60 shadow-[inset_0_0_150px_rgba(0,0,0,0.8)]" />
       </div>
@@ -67,14 +67,17 @@ export function Hero() {
             </div>
           </div>
 
-          {/* Top Right Logo Box */}
-          <div className="bg-white/95 px-4 py-2 rounded-sm shadow-lg flex items-center gap-3">
-            <div className="text-2xl text-[#8B1E1E] font-serif font-bold border-r border-zinc-300 pr-3 leading-none">
-              AUS
-            </div>
-            <div className="flex flex-col text-xs leading-tight text-zinc-600 font-medium">
-              <span className="text-xs font-semibold text-zinc-800">الجامعة الأمريكية في الشارقة</span>
-              <span className="text-[11px]">American University of Sharjah</span>
+          {/* Top Right Area */}
+          <div className="flex items-center gap-4">
+            {/* Top Right Logo Box */}
+            <div className="bg-white/95 px-4 py-2 rounded-sm shadow-lg flex items-center gap-3">
+              <div className="text-2xl text-[#8B1E1E] font-serif font-bold border-r border-zinc-300 pr-3 leading-none">
+                AUS
+              </div>
+              <div className="flex flex-col text-xs leading-tight text-zinc-600 font-medium">
+                <span className="text-xs font-semibold text-zinc-800">الجامعة الأمريكية في الشارقة</span>
+                <span className="text-[11px]">American University of Sharjah</span>
+              </div>
             </div>
           </div>
         </div>

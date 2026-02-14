@@ -23,3 +23,5 @@ if (!email) {
 }
 
 setAdminClaim(email);
+
+// npm run set-admin <email>
