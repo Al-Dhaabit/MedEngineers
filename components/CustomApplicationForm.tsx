@@ -110,7 +110,7 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
 
     // The question index (0-indexed) that triggers the skip logic
     // This is typically "What major are you in?" - we'll detect it by label
-    const MAJOR_QUESTION_KEYWORDS = ["what major are you in", "what is your major and year of study"];
+    const MAJOR_QUESTION_KEYWORDS = ["what major are you in", "what is your major and year of study", "what field are you in"];
 
     // ===== TEST DATA GENERATOR =====
     const fillTestData = (targetMajor: "Engineering" | "Medicine") => {

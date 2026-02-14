@@ -2,6 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { CustomApplicationForm } from "./CustomApplicationForm";
+import { onAuthStateChanged, signOut, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { TicketTailorWidget } from "@/components/TicketTailorWidget";
+import { auth } from "@/lib/Firebase";
+import { Button } from "@/components/ui/button";
 
 type UserStatus = "guest" | "pending" | "approved" | "domain_ai";
 
@@ -31,6 +35,133 @@ interface SubmissionResult {
 export function RegistrationSection() {
   // Mock state to demonstrate the flow. In a real app, this comes from the backend.
   const [status, setStatus] = useState<UserStatus>("guest");
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [isCheckingStatus, setIsCheckingStatus] = useState(false);
+  const [statusCheckMessage, setStatusCheckMessage] = useState<string>("");
+  const [hasCheckedStatus, setHasCheckedStatus] = useState(false);
+
+  // Check if user has submitted form or not using onAuthStateChange
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          // Send the UID to check against your collections
+          const res = await fetch("/api/user-status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ uid: user.uid }),
+          });
+
+          const data = await res.json();
+          // If the API confirms submission, update the status based on actualStatus
+          if (data.status === true) {
+            // Use the actual status from the backend (pending, accepted, rejected)
+            const actualStatus = data.actualStatus?.toLowerCase();
+            if (actualStatus === "accepted") {
+              setStatus("approved");
+            } else if (actualStatus === "rejected") {
+              setStatus("guest"); // Or you could add a "rejected" state
+            } else {
+              setStatus("pending");
+            }
+
+            // Store user and submission info in state
+            setCurrentUser({
+              ...user,
+              hasSubmitted: true,
+              submissionType: data.type,
+              actualStatus: actualStatus
+            });
+
+          } else {
+            setStatus("guest");
+            setCurrentUser({
+              ...user,
+              hasSubmitted: false
+            });
+
+            // If we just checked status and no application was found, show helpful message
+            if (hasCheckedStatus) {
+              setStatusCheckMessage("No application found for this account. You may need to submit an application first, or check if you used a different Google account.");
+            }
+          }
+        } catch (error) {
+          console.error("Auth check failed", error);
+          setCurrentUser(null);
+        }
+      } else {
+        setStatus("guest");
+        setCurrentUser(null);
+      }
+    });
+    return () => unsubscribe();
+  }, [hasCheckedStatus]); // Added dependency
+
+  // Handle manual status check
+  const handleCheckStatus = async () => {
+    setIsCheckingStatus(true);
+    setStatusCheckMessage("");
+    setHasCheckedStatus(true);
+
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      // The onAuthStateChanged hook will handle the rest
+    } catch (error: any) {
+      console.error("Status check login failed", error);
+      setStatusCheckMessage(error.message || "Failed to sign in");
+    } finally {
+      setIsCheckingStatus(false);
+    }
+  };
+
+  // Add periodic status checking for pending users
+  useEffect(() => {
+    if (status === "pending" && currentUser?.hasSubmitted) {
+      const interval = setInterval(async () => {
+        try {
+          const res = await fetch("/api/user-status", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ uid: currentUser.uid }),
+          });
+
+          const data = await res.json();
+          if (data.status === true) {
+            const actualStatus = data.actualStatus?.toLowerCase();
+            if (actualStatus === "accepted") {
+              setStatus("approved");
+              setCurrentUser((prev: any) => prev ? { ...prev, actualStatus: "accepted" } : null);
+              clearInterval(interval); // Stop checking once approved
+            } else if (actualStatus === "rejected") {
+              setStatus("guest");
+              setCurrentUser((prev: any) => prev ? { ...prev, hasSubmitted: false, actualStatus: "rejected" } : null);
+              clearInterval(interval); // Stop checking once rejected
+            }
+          }
+        } catch (error) {
+          console.error("Periodic status check failed", error);
+        }
+      }, 10000); // Check every 10 seconds
+
+      return () => clearInterval(interval); // Cleanup on unmount or status change
+    }
+  }, [status, currentUser]);
+
+  // Handle payment - now using Ticket Tailor widget
+  const handlePayment = () => {
+    // The actual payment handling is now done by the Ticket Tailor widget
+    console.log('Payment handled by Ticket Tailor widget');
+  };
+
+  // Handle logout
+  const handleLogout = () => {
+    signOut(auth);
+    setStatus("guest");
+    setCurrentUser(null);
+    setHasCheckedStatus(false);
+    setStatusCheckMessage("");
+  };
 
   // Domain AI state
   const [domainLoading, setDomainLoading] = useState(false);
@@ -408,6 +539,128 @@ export function RegistrationSection() {
               </p>
             </div>
 
+            {/* Status Check Result Message */}
+            {hasCheckedStatus && statusCheckMessage && (
+              <div className="mx-auto max-w-4xl mb-8">
+                <div className={`rounded-xl p-6 border ${statusCheckMessage.includes("No application")
+                  ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
+                  : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
+                  }`}>
+                  <div className="text-center">
+                    {statusCheckMessage.includes("No application") ? (
+                      <>
+                        <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-2">
+                          No Application Found
+                        </h3>
+                        <p className="text-blue-700 dark:text-blue-300 mb-4">
+                          We couldn't find an application associated with your account. This could mean:
+                        </p>
+                        <ul className="text-left text-blue-700 dark:text-blue-300 space-y-2 mb-4">
+                          <li>• You haven't submitted an application yet</li>
+                          <li>• You used a different Google account to apply</li>
+                          <li>• Your application is still being processed</li>
+                        </ul>
+                        <p className="text-blue-700 dark:text-blue-300 font-medium">
+                          Please fill out the application form below to get started!
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <svg className="w-6 h-6 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <h3 className="text-lg font-semibold text-red-900 dark:text-red-100 mb-2">
+                          Error
+                        </h3>
+                        <p className="text-red-700 dark:text-red-300">
+                          {statusCheckMessage}
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Status Check Section for Existing Applicants - Only show if not logged in */}
+            {!currentUser && (
+              <div className="mx-auto max-w-4xl mb-8">
+                <div className="bg-zinc-50 dark:bg-zinc-900 rounded-xl p-6 border border-zinc-200 dark:border-zinc-800">
+                  <div className="text-center">
+                    <h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-2">
+                      Already submitted your application?
+                    </h3>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
+                      Sign in to check your application status and updates
+                    </p>
+                    <Button
+                      variant="outline"
+                      onClick={handleCheckStatus}
+                      disabled={isCheckingStatus}
+                      className="bg-white dark:bg-zinc-800 border-[#007b8a] text-[#007b8a] hover:bg-[#007b8a] hover:text-white"
+                    >
+                      {isCheckingStatus ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-[#007b8a] border-t-transparent rounded-full animate-spin mr-2" />
+                          Checking Status...
+                        </>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
+                            <path
+                              fill="#007b8a"
+                              d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                            />
+                            <path
+                              fill="#34A853"
+                              d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                            />
+                            <path
+                              fill="#FBBC05"
+                              d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                            />
+                            <path
+                              fill="#EA4335"
+                              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                            />
+                          </svg>
+                          Check Application Status
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Sign Out Section - Only show if logged in but no application */}
+            {currentUser && !currentUser?.hasSubmitted && (
+              <div className="mx-auto max-w-4xl mb-8">
+                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-6 border border-blue-200 dark:border-blue-800">
+                  <div className="text-center">
+                    <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-2">
+                      Ready to Apply?
+                    </h3>
+                    <p className="text-blue-700 dark:text-blue-300">
+                      We couldn't find an application for this account. Please fill out the form below to get started.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="mx-auto max-w-4xl">
               {/* Custom Styled Form with built-in submit */}
               <CustomApplicationForm onSubmitSuccess={() => setStatus("pending")} />
@@ -463,20 +716,12 @@ export function RegistrationSection() {
               </p>
             </div>
 
-            <div className="mx-auto max-w-4xl bg-white dark:bg-zinc-900 rounded-3xl shadow-xl ring-1 ring-zinc-200 dark:ring-zinc-800 overflow-hidden">
-              <div className="bg-[#007b8a] px-6 py-4">
-                <h3 className="text-white font-semibold">Official Ticket Counter</h3>
+            <div className="mx-auto max-w-4xl bg-white rounded-3xl shadow-xl ring-1 ring-zinc-200 overflow-hidden">
+              <div className="bg-[#007b8a] px-6 py-4 flex items-center justify-center">
+                <h3 className="text-white font-semibold text-center m-0">Official Ticket Counter</h3>
               </div>
-              <div className="p-10 text-center">
-                <div className="p-12 border-2 border-dashed border-zinc-300 dark:border-zinc-700 rounded-xl bg-zinc-50 dark:bg-black/20">
-                  <p className="text-zinc-500 dark:text-zinc-400 italic mb-4">[Ticket Tailor Widget Loads Here]</p>
-                  <button
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-md font-semibold hover:opacity-90"
-                    onClick={() => alert("Launching Ticket Tailor Checkout...")}
-                  >
-                    Purchase Ticket ($25)
-                  </button>
-                </div>
+              <div className="p-6">
+                <TicketTailorWidget />
               </div>
             </div>
           </div>

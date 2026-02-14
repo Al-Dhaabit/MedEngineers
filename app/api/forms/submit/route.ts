@@ -6,8 +6,13 @@ import { getPublicEntryIds } from "@/lib/google-forms";
 import { auth } from "@/lib/Firebase";
 import admin from "firebase-admin";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
+import { validateFormSubmission } from "@/lib/validators";
 
 export async function POST(req: NextRequest) {
+    // const requestId = crypto.randomUUID(); // Simple request ID
+    let formType: string = "competitor";
+    let decodedToken: any = null;
+
     try {
         // 1. Verify Authentication
         const session = await getServerSession(authOptions);
@@ -16,7 +21,112 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json();
-        const { responses, type = "competitor", idToken } = body; // Added idToken to be fetched by, Ahmad for Firebase Storage
+        const { responses, type = "competitor", idToken } = body;
+        formType = type;
+
+        // 1. Verify Firebase Authentication
+        if (!idToken) {
+            console.warn('Missing ID token in request');
+            return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+        }
+
+        try {
+            // Verify token and check for revocation
+            decodedToken = await adminAuth.verifyIdToken(idToken, true);
+
+            // Additional security checks
+            if (!decodedToken.email_verified) {
+                console.warn('Unverified email attempted submission', {
+                    email: decodedToken.email
+                });
+                return NextResponse.json({
+                    error: "Email must be verified to submit applications"
+                }, { status: 401 });
+            }
+
+            // Check token expiry (already handled by verifyIdToken but explicit check)
+            if (decodedToken.exp && decodedToken.exp < Date.now() / 1000) {
+                return NextResponse.json({ error: "Token expired" }, { status: 401 });
+            }
+
+        } catch (error) {
+            console.error('Token verification failed', {
+                error: error instanceof Error ? error.message : String(error)
+            });
+            return NextResponse.json({
+                error: "Invalid authentication token"
+            }, { status: 401 });
+        }
+
+        if (!decodedToken.email) {
+            console.warn('Token missing email claim');
+            return NextResponse.json({
+                error: "Invalid authentication token"
+            }, { status: 401 });
+        }
+
+        // === INPUT VALIDATION === //
+        console.log('Validating form input');
+
+        // Check if validateFormSubmission exists, otherwise skip (simple fallback)
+        // We assume it's imported. If not, we will add import at top.
+        // For now, let's trust the logic structure but we need to add the import.
+
+        /* 
+           NOTE: validateFormSubmission is missing from imports. 
+           Refactoring this to be simpler or adding the import.
+           Since I am rewriting the block, I can't easily add the import at the top of file 
+           without another replace call. 
+           I will comment out the validation call here to prevent build errors if import is missing, 
+           OR I will try to use the raw logic if possible.
+           Actually, I will assume I can add the import in a subsequent step or previous step.
+        */
+
+        const validation = validateFormSubmission(body, type);
+
+        if (!validation.success) {
+            console.error("Validation error", validation.details || [], decodedToken.email);
+            return NextResponse.json(
+                {
+                    error: validation.details?.join(', ') || "Invalid form data. Please check your input and try again.",
+                    code: validation.code,
+                    details: validation.details
+                },
+                { status: 400 }
+            );
+        }
+
+
+        // Additional security: Check if token was recently used (prevent replay attacks)
+        const tokenHash = Buffer.from(idToken).toString('base64').substring(0, 32);
+        const recentTokenKey = `recent_token_${decodedToken.uid}_${tokenHash}`;
+
+        // In production, use Redis for this. For now, using memory with cleanup
+        if ((global as any).recentTokens?.has(recentTokenKey)) {
+            console.warn('Token reuse detected', {
+                uid: decodedToken.uid
+            });
+            return NextResponse.json({
+                error: "Invalid request - token already used"
+            }, { status: 401 });
+        }
+
+        // Store token hash to prevent reuse (expires in 5 minutes)
+        if (!(global as any).recentTokens) {
+            (global as any).recentTokens = new Map();
+        }
+        (global as any).recentTokens.set(recentTokenKey, Date.now());
+
+        // Cleanup old tokens
+        setTimeout(() => {
+            (global as any).recentTokens?.delete(recentTokenKey);
+        }, 5 * 60 * 1000);
+
+        console.log('Authentication successful', {
+            uid: decodedToken.uid,
+            email: decodedToken.email
+        });
+
 
         // === CODE ADDED BY AHMAD FOR FIREBASE === //
         console.log("=== RECIEVED DATA ===")
@@ -55,8 +165,19 @@ export async function POST(req: NextRequest) {
                 console.log("=== FORM SUBMITTED ===")
                 console.log("Form submitted successfully for user:", uid);
             } catch (fbError) {
-                console.log("=== FORM SUBMISSION FAILED ===")
-                console.log(fbError);
+                console.error('Firebase submission failed', {
+                    type: 'attendee',
+                    error: fbError
+                });
+
+                // Return proper error response to client
+                return NextResponse.json(
+                    {
+                        error: "Failed to save application to database",
+                        code: "FIREBASE_SAVE_ERROR"
+                    },
+                    { status: 500 }
+                );
             }
         } else if (type === "competitor" && idToken) {
             try {
@@ -82,8 +203,8 @@ export async function POST(req: NextRequest) {
                         nationality: responses["492691881"] || "",
                         emiratesID: responses["1368274746"] || "",
                         major: responses["563534208"] || "",
-                        majorType: responses["1921732712"] || "",
-                        year: responses["2106989264"] || "",
+                        majorType: responses["1921732712"] || responses["1945900292"] || "",
+                        year: responses["2106989264"] || responses["257116715"] || "",
                         linkedIn: responses["1706787055"] || "",
                         googleDrive: responses["979885116"] || "",
                         group1: responses["2005954606"] || [],
@@ -111,8 +232,8 @@ export async function POST(req: NextRequest) {
                         nationality: responses["492691881"] || "",
                         emiratesID: responses["1368274746"] || "",
                         major: responses["563534208"] || "",
-                        majorType: responses["1945900292"] || "",
-                        year: responses["257116715"] || "",
+                        majorType: responses["1945900292"] || responses["1921732712"] || "",
+                        year: responses["257116715"] || responses["2106989264"] || "",
                         skillSet: responses["697380523"] || "",
                         linkedIn: responses["1745529891"] || "",
                         resume: responses["2111396898"] || "",
@@ -134,8 +255,17 @@ export async function POST(req: NextRequest) {
                 console.log("Form submitted successfully for user:", uid);
 
             } catch (fbError) {
-                console.log("=== FORM SUBMISSION FAILED (COMPETITOR) ===")
-                console.log(fbError);
+                console.error("=== FORM SUBMISSION FAILED (COMPETITOR) ===")
+                console.error("Firebase error:", fbError);
+
+                // Return proper error response to client
+                return NextResponse.json(
+                    {
+                        error: "Failed to save application to database",
+                        code: "FIREBASE_SAVE_ERROR"
+                    },
+                    { status: 500 }
+                );
             }
         }
 
@@ -263,9 +393,17 @@ export async function POST(req: NextRequest) {
         });
 
     } catch (error) {
-        console.error("Submission Error:", error);
+        console.error('Form submission failed', {
+            error
+        });
+
+        // logSubmission(decodedToken?.email || 'unknown', formType, false, error);
+
         return NextResponse.json(
-            { error: "Failed to submit form", details: String(error) },
+            {
+                error: "Failed to submit form. Please try again.",
+                code: "SUBMISSION_ERROR"
+            },
             { status: 500 }
         );
     }
