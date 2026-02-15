@@ -35,10 +35,11 @@ export async function POST(req: NextRequest) {
         }
 
         try {
-            // Verify token and check for revocation
+            // Verify token and check for revocation (true) 
+            // If the user's account is disabled or their password is changed, the token will be revoked
             decodedToken = await adminAuth.verifyIdToken(idToken, true);
 
-            // Additional security checks
+            // Email verification check to prevent bot spamming 
             if (!decodedToken.email_verified) {
                 logger.warn('Unverified email attempted submission', {
                     requestId,
@@ -129,6 +130,11 @@ export async function POST(req: NextRequest) {
                 // check if user already exists in attendees collection
                 const userDoc = await adminDb.collection("attendees").doc(uid).get();
                 if (userDoc.exists) {
+                    logger.warn('User already exists', {
+                        requestId,
+                        uid: decodedToken.uid,
+                        email: decodedToken.email
+                    });
                     return NextResponse.json(
                         { error: "User already exists" },
                         { status: 409 }
@@ -143,9 +149,10 @@ export async function POST(req: NextRequest) {
                     nationality: responses["492691881"] || "",
                     emiratesID: responses["1368274746"] || "",
                     major: responses["1740303904"] || "",
-                    paid: false,
+                    isPayed: false,
                     submitted: true,
                     submittedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 }, { merge: true });
 
                 logger.info("Form submitted successfully for user (attendee)", { uid });
@@ -174,6 +181,11 @@ export async function POST(req: NextRequest) {
                 // check if user already exists in attendees collection
                 const userDoc = await adminDb.collection("competitors").doc(uid).get();
                 if (userDoc.exists) {
+                    logger.warn('User already exists', {
+                        requestId,
+                        uid: decodedToken.uid,
+                        email: decodedToken.email
+                    });
                     return NextResponse.json(
                         { error: "User already exists" },
                         { status: 409 }
@@ -189,8 +201,8 @@ export async function POST(req: NextRequest) {
                         nationality: responses["492691881"] || "",
                         emiratesID: responses["1368274746"] || "",
                         major: responses["563534208"] || "",
-                        majorType: responses["1921732712"] || responses["1945900292"] || "",
-                        year: responses["2106989264"] || responses["257116715"] || "",
+                        majorType: responses["1921732712"] || "",
+                        year: responses["2106989264"] || "",
                         linkedIn: responses["1706787055"] || "",
                         googleDrive: responses["979885116"] || "",
                         group1: responses["2005954606"] || [],
@@ -219,8 +231,8 @@ export async function POST(req: NextRequest) {
                         nationality: responses["492691881"] || "",
                         emiratesID: responses["1368274746"] || "",
                         major: responses["563534208"] || "",
-                        majorType: responses["1945900292"] || responses["1921732712"] || "",
-                        year: responses["257116715"] || responses["2106989264"] || "",
+                        majorType: responses["1945900292"] || "",
+                        year: responses["257116715"] || "",
                         skillSet: responses["697380523"] || "",
                         linkedIn: responses["1745529891"] || "",
                         resume: responses["2111396898"] || "",
