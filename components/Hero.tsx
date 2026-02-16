@@ -54,14 +54,14 @@ export function Hero() {
 
       {/* Header Container */}
       <div className="absolute top-5 sm:top-8 left-0 right-0 z-20 px-5 sm:px-8">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center w-full max-w-7xl mx-auto gap-4">
+        <div className="flex flex-row justify-between items-center w-full max-w-7xl mx-auto gap-4">
           {/* Top Left Logo */}
           <div className="flex items-center">
             <div className="flex flex-col border-l-2 border-[#007b8a] pl-3 py-0.5">
-              <span className="text-2xl sm:text-3xl font-black tracking-tight text-white leading-none">
+              <span className="text-xl sm:text-3xl font-black tracking-tight text-white leading-none">
                 MED<span className="text-[#007b8a]">HACK</span>
               </span>
-              <span className="text-xs font-bold tracking-[0.2em] text-zinc-400 uppercase leading-none mt-0.5">
+              <span className="text-[10px] sm:text-xs font-bold tracking-[0.2em] text-zinc-400 uppercase leading-none mt-0.5">
                 GLOBAL
               </span>
             </div>
@@ -70,14 +70,12 @@ export function Hero() {
           {/* Top Right Area */}
           <div className="flex items-center gap-4">
             {/* Top Right Logo Box */}
-            <div className="bg-white/95 px-4 py-2 rounded-sm shadow-lg flex items-center gap-3">
-              <div className="text-2xl text-[#8B1E1E] font-serif font-bold border-r border-zinc-300 pr-3 leading-none">
-                AUS
-              </div>
-              <div className="flex flex-col text-xs leading-tight text-zinc-600 font-medium">
-                <span className="text-xs font-semibold text-zinc-800">الجامعة الأمريكية في الشارقة</span>
-                <span className="text-[11px]">American University of Sharjah</span>
-              </div>
+            <div className="flex items-center">
+              <img
+                src="/logos/aus_logo.svg"
+                alt="AUS Logo"
+                className="h-24 sm:h-32 w-auto object-contain"
+              />
             </div>
           </div>
         </div>
@@ -93,12 +91,15 @@ export function Hero() {
 
         {/* Main Headline */}
         <h1 className="flex flex-col items-center px-4 w-full">
-          <div className="w-full text-[15vw] xs:text-[13vw] sm:text-[7.5rem] font-black tracking-[-0.03em] leading-[0.9] uppercase select-none">
-            <span className="text-[#007b8a] drop-shadow-[0_0_20px_rgba(0,123,138,0.4)]">med</span>
-            <span className="text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.3)] block sm:inline-block sm:ml-3">engineers</span>
+          <div className="w-full flex justify-center items-center px-4">
+            <img
+              src="/logos/Medengineers Logo-cropped.svg"
+              alt="MedEngineers"
+              className="w-auto h-24 xs:h-32 sm:h-40 md:h-52 lg:h-64 xl:h-80 object-contain drop-shadow-[0_0_20px_rgba(0,123,138,0.4)]"
+            />
           </div>
 
-          <div className="mt-5 sm:mt-7 flex flex-col sm:flex-row items-center justify-center gap-3 text-white/95 font-medium tracking-wide">
+          <div className="mt-1 sm:mt-1 flex flex-col sm:flex-row items-center justify-center gap-3 text-white/95 font-medium tracking-wide">
             <span className="text-4xl sm:text-3xl">🇦🇪</span>
             <span className="text-lg sm:text-xl md:text-2xl uppercase tracking-widest font-light text-center">
               Where Medicine meets Engineering

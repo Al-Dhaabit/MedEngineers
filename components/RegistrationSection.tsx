@@ -8,7 +8,7 @@ import { auth } from "@/lib/Firebase";
 import { Button } from "@/components/ui/button";
 import { retrieveFormData, hasValidStoredData, clearStoredData } from "@/lib/secureStorage";
 
-type UserStatus = "guest" | "pending" | "approved" | "loading" | "domain_ai";
+type UserStatus = "guest" | "pending" | "approved" | "loading" | "domain_ai" | "payment_success" | "final_phase" | "domain_selection";
 
 // Domain recommendation types
 interface DomainScore {
@@ -43,6 +43,10 @@ export function RegistrationSection() {
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const [statusCheckMessage, setStatusCheckMessage] = useState<string>("");
   const [hasCheckedStatus, setHasCheckedStatus] = useState(false);
+
+  // States for Domain Selection (Dev View)
+  const [selectedDomain, setSelectedDomain] = useState<string | null>(null);
+  const [expandedDomain, setExpandedDomain] = useState<string | null>(null);
 
 
   // Check if user has submitted form or not using onAuthStateChange
@@ -226,7 +230,7 @@ export function RegistrationSection() {
       }
     }
 
-    // 2. Fetch fresh data from API (always runs to get updates)
+    // 2. Fresh data from API
     try {
       const res = await fetch("/api/domain-suggest");
       if (!res.ok) {
@@ -337,6 +341,35 @@ export function RegistrationSection() {
             </button>
           ))}
 
+          <button
+            onClick={() => setStatus("payment_success")}
+            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${status === "payment_success"
+              ? "bg-green-600 text-white"
+              : "bg-white dark:bg-black text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800"
+              }`}
+          >
+            Payment Success
+          </button>
+
+          <button
+            onClick={() => setStatus("final_phase")}
+            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${status === "final_phase"
+              ? "bg-blue-600 text-white"
+              : "bg-white dark:bg-black text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800"
+              }`}
+          >
+            Final Phase
+          </button>
+
+          <button
+            onClick={() => setStatus("domain_selection")}
+            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${status === "domain_selection"
+              ? "bg-orange-600 text-white"
+              : "bg-white dark:bg-black text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800"
+              }`}
+          >
+            Domain Selection
+          </button>
 
           <div className="w-px h-6 bg-zinc-300 dark:bg-zinc-700 self-center mx-2" />
 
@@ -834,9 +867,324 @@ export function RegistrationSection() {
           </div>
         )}
 
+        {/* 2.5 DOMAIN SELECTION VIEW (Dev View Only) */}
+        {status === "domain_selection" && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+            <div className="mx-auto max-w-5xl text-center mb-16">
+              <h2 className="text-4xl sm:text-6xl font-black tracking-[-0.05em] uppercase text-[#007b8a] mb-4">
+                Select a Domain
+              </h2>
+              <p className="text-lg text-zinc-600 dark:text-zinc-400 mb-10 max-w-2xl mx-auto">
+                Choose the domain that best fits your project. You can always refine this choice later with your team.
+              </p>
 
 
-      </div >
-    </section >
+              {/* Domain Grid: Reworked for Premium Feel */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                {[
+                  {
+                    id: "A",
+                    title: "Medical Tools & Hardware",
+                    tagline: "Tangible Engineering",
+                    definition: "Focuses on physical devices, tactile surgical instruments, and wearable bio-hardware that interact directly with human physiology.",
+                    goal: "Develop tangible, high-precision physical prototypes.",
+                    examples: [
+                      { name: "Steady-Suture", desc: "Haptic-feedback needle holders." },
+                      { name: "Smart-IV Drip", desc: "Infrared air-bubble detection systems." },
+                      { name: "Hemo-Cool", desc: "Peltier-controlled thermal sample carriers." }
+                    ],
+                    icon: (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" />
+                      </svg>
+                    )
+                  },
+                  {
+                    id: "B",
+                    title: "Clinical Systems & Operations",
+                    tagline: "Systems Intelligence",
+                    definition: "Optimizing the logic and flow of healthcare environments through systems thinking and resource maximization.",
+                    goal: "Create functional models or process simulations.",
+                    examples: [
+                      { name: "ER Triage-Bot", desc: "Predictive patient flow logic." },
+                      { name: "Opti-Staff", desc: "Data-driven nurse roster optimization." },
+                      { name: "Asset-Track", desc: "RFID-based high-value asset tracking." }
+                    ],
+                    icon: (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                    )
+                  },
+                  {
+                    id: "C",
+                    title: "Digital Health & AI",
+                    tagline: "Algorithmic Healthcare",
+                    definition: "Leveraging computer vision and machine learning to build diagnostic tools and remote monitoring platforms.",
+                    goal: "Build functional apps or diagnostic algorithms.",
+                    examples: [
+                      { name: "Derma-Scan AI", desc: "Vision-based lesion screening." },
+                      { name: "Vocal-Marker", desc: "Respiratory audio analysis AI." },
+                      { name: "Sync-Rehab", desc: "Motion-tracking physiotherapy apps." }
+                    ],
+                    icon: (
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                      </svg>
+                    )
+                  }
+                ].map((domain) => (
+                  <div
+                    key={domain.id}
+                    onClick={() => setSelectedDomain(domain.id)}
+                    className={`group relative p-8 rounded-3xl border transition-all duration-500 cursor-pointer ${selectedDomain === domain.id
+                      ? "bg-zinc-50 dark:bg-[#007b8a]/5 border-[#007b8a] shadow-[0_0_40px_rgba(0,123,138,0.15)] ring-1 ring-[#007b8a]/20"
+                      : "bg-white dark:bg-black border-zinc-200 dark:border-zinc-800 hover:border-[#007b8a]/40"
+                      }`}
+                  >
+                    {/* Technical ID */}
+                    <div className="absolute top-6 right-8 font-mono text-[9px] font-black tracking-[0.2em] text-zinc-300 dark:text-zinc-700">
+                      SEC_ID: 0{domain.id === 'A' ? 1 : domain.id === 'B' ? 2 : 3}
+                    </div>
+
+                    {/* Icon & Category */}
+                    <div className="flex items-center gap-4 mb-8">
+                      <div className={`w-12 h-12 flex items-center justify-center rounded-2xl transition-all duration-500 ${selectedDomain === domain.id ? "bg-[#007b8a] text-white shadow-lg shadow-[#007b8a]/30 rotate-3" : "bg-zinc-100 dark:bg-zinc-900 text-[#007b8a]"}`}>
+                        {domain.icon}
+                      </div>
+                      <div className="text-left">
+                        <span className="block text-[10px] font-black uppercase tracking-widest text-[#007b8a] mb-0.5">Domain {domain.id}</span>
+                        <span className="block text-xs font-medium text-zinc-400">{domain.tagline}</span>
+                      </div>
+                    </div>
+
+                    <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-4 text-left leading-tight group-hover:text-[#007b8a] transition-colors">
+                      {domain.title}
+                    </h3>
+
+                    {/* Action Area */}
+                    <div className="flex items-center justify-between mt-auto">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setExpandedDomain(expandedDomain === domain.id ? null : domain.id);
+                        }}
+                        className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full border transition-all ${expandedDomain === domain.id ? "bg-[#007b8a] border-[#007b8a] text-white" : "border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-[#007b8a] hover:text-[#007b8a]"}`}
+                      >
+                        {expandedDomain === domain.id ? "Close Brief" : "View Brief"}
+                      </button>
+
+                      {selectedDomain === domain.id && (
+                        <div className="flex items-center gap-2 animate-in fade-in zoom-in slide-in-from-right-2">
+                          <span className="text-[10px] font-black uppercase tracking-tighter text-[#007b8a]">Selected</span>
+                          <div className="w-2 h-2 rounded-full bg-[#007b8a] animate-pulse" />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Precision Expansion Detail */}
+                    <div className={`overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.2,0,0,1)] ${expandedDomain === domain.id ? "max-h-[800px] opacity-100 mt-8" : "max-h-0 opacity-0"}`}>
+                      <div className="pt-8 border-t border-zinc-100 dark:border-zinc-800/50 space-y-8 text-left">
+
+                        <div>
+                          <label className="text-[9px] font-black uppercase tracking-[0.2em] text-[#007b8a] block mb-3">01. Tactical Scope</label>
+                          <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed tabular-nums">
+                            {domain.definition}
+                          </p>
+                        </div>
+
+                        <div>
+                          <label className="text-[9px] font-black uppercase tracking-[0.2em] text-[#007b8a] block mb-3">02. Mission Objective</label>
+                          <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-200 leading-snug">
+                            {domain.goal}
+                          </p>
+                        </div>
+
+                        <div>
+                          <label className="text-[9px] font-black uppercase tracking-[0.2em] text-[#007b8a] block mb-4">03. Project Precedents</label>
+                          <div className="space-y-4">
+                            {domain.examples.map((ex, i) => (
+                              <div key={i} className="group/item bg-zinc-50 dark:bg-white/5 p-4 rounded-xl border border-transparent hover:border-[#007b8a]/20 transition-all">
+                                <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100 block mb-1">{ex.name}</span>
+                                <span className="text-[11px] text-zinc-400 leading-tight block">{ex.desc}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="mt-20 flex flex-col items-center gap-6">
+                <button
+                  disabled={!selectedDomain}
+                  onClick={() => setStatus("payment_success")}
+                  className={`px-12 py-3 rounded-full font-bold transition-all text-sm uppercase tracking-widest shadow-lg ${selectedDomain
+                    ? "bg-[#007b8a] text-white hover:bg-[#00606b] hover:scale-105 active:scale-95 shadow-[#007b8a]/20"
+                    : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed"
+                    }`}
+                >
+                  Confirm Domain
+                </button>
+                <p className="text-xs text-zinc-400 flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Selection is preliminary. You can finalize your domain choice during the team formation phase.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* 5. PAYMENT SUCCESS VIEW: Mock Confirmation Screen */}
+        {status === "payment_success" && (
+          <div className="animate-in fade-in zoom-in-95 duration-700">
+            <div className="mx-auto max-w-2xl text-center py-12">
+              <div className="mb-8 flex justify-center">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-green-500 blur-2xl opacity-20 animate-pulse rounded-full" />
+                  <div className="relative h-24 w-24 rounded-full bg-green-500 flex items-center justify-center shadow-[0_0_30px_rgba(34,197,94,0.4)]">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="white" className="w-14 h-14">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              <h2 className="text-4xl sm:text-6xl font-black tracking-[-0.05em] uppercase text-green-500 mb-4">
+                Payment Successful
+              </h2>
+              <p className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-2xl mb-2">
+                Your spot is secured!
+              </p>
+              <p className="text-lg text-zinc-600 dark:text-zinc-400 max-w-md mx-auto">
+                Your payment was processed successfully. We&apos;ve sent a confirmation email with your ticket details.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* 6. FINAL PHASE VIEW: Reworked Mission Control Aesthetic */}
+        {status === "final_phase" && (
+          <div className="animate-in fade-in zoom-in-95 duration-1000">
+            <div className="mx-auto max-w-4xl text-center py-12 relative">
+
+              {/* New Prominent Header */}
+              <div className="mb-12">
+                <h2 className="text-4xl sm:text-6xl font-black tracking-tight text-zinc-900 dark:text-white uppercase">
+                  The <span className="text-[#007b8a]">Countdown</span> Begins
+                </h2>
+                <div className="mt-4 h-1 w-24 bg-[#007b8a] mx-auto rounded-full" />
+              </div>
+
+              {/* Reworked Timer */}
+              <div className="mb-12">
+                <CountdownTimer targetDate="2026-03-28T00:00:00" />
+              </div>
+
+              {/* Mission Briefing Section (Reworked from "Words of Encouragement") */}
+              <div className="mt-20 max-w-2xl mx-auto">
+                <div className="relative p-1 bg-gradient-to-b from-[#007b8a]/20 to-transparent rounded-3xl">
+                  <div className="bg-white dark:bg-black/40 backdrop-blur-xl p-8 sm:p-12 rounded-[1.4rem] border border-zinc-200 dark:border-zinc-800/50 text-left relative overflow-hidden">
+
+                    {/* Background Detail */}
+                    <div className="absolute -right-4 -bottom-4 w-32 h-32 bg-[#007b8a]/5 rounded-full blur-3xl" />
+
+                    <div className="flex items-start gap-6 relative z-10">
+                      <div className="hidden sm:flex flex-col items-center gap-3">
+                        <div className="w-px h-12 bg-gradient-to-b from-transparent via-[#007b8a] to-transparent" />
+                        <span className="[writing-mode:vertical-lr] text-[10px] uppercase font-black tracking-[0.4em] text-[#007b8a]/50 py-4">Briefing</span>
+                        <div className="w-px h-12 bg-gradient-to-b from-transparent via-[#007b8a] to-transparent" />
+                      </div>
+
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-6">
+                          <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400">Mission Objective</span>
+                          <div className="h-px flex-1 bg-zinc-200 dark:bg-zinc-800" />
+                        </div>
+
+                        <h3 className="text-2xl sm:text-3xl font-bold text-zinc-900 dark:text-white mb-6 leading-tight">
+                          Where medicine meets engineering, <br className="hidden sm:block" /> the future is built.
+                        </h3>
+
+                        <div className="space-y-6 text-zinc-500 dark:text-zinc-400 text-sm sm:text-base leading-relaxed">
+                          <p>
+                            We are no longer just building tools; we are re-engineering the human experience. MedEngineers 2026 is the epicenter of a fundamental shift in how we heal, how we build, and how we survive.
+                          </p>
+                          <p className="font-bold text-zinc-900 dark:text-white sm:text-zinc-200">
+                            Architecture meets Anatomy. Precision meets Pulse. You are here to redefine the boundaries of possibility. The code you write today becomes the cure of tomorrow.
+                          </p>
+                        </div>
+
+                        <div className="mt-10 flex flex-wrap gap-3">
+                          {["#BioTech", "#Innovation", "#MedEngineers2026"].map(tag => (
+                            <span key={tag} className="text-[9px] font-bold uppercase tracking-widest px-3 py-1.5 bg-zinc-100 dark:bg-zinc-900 text-zinc-500 dark:text-zinc-500 rounded-full border border-zinc-200 dark:border-zinc-800">
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+// Separate helper component for the Countdown Timer
+function CountdownTimer({ targetDate }: { targetDate: string }) {
+  const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
+
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      const difference = +new Date(targetDate) - +new Date();
+      if (difference > 0) {
+        setTimeLeft({
+          days: Math.floor(difference / (1000 * 60 * 60 * 24)),
+          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+          minutes: Math.floor((difference / 1000 / 60) % 60),
+          seconds: Math.floor((difference / 1000) % 60),
+        });
+      }
+    };
+
+    calculateTimeLeft();
+    const timer = setInterval(calculateTimeLeft, 1000);
+    return () => clearInterval(timer);
+  }, [targetDate]);
+
+  if (!timeLeft) return null;
+
+  return (
+    <div className="grid grid-cols-4 gap-4 sm:gap-8 max-w-2xl mx-auto">
+      {[
+        { value: timeLeft.days, label: "Days" },
+        { value: timeLeft.hours, label: "Hours" },
+        { value: timeLeft.minutes, label: "Minutes" },
+        { value: timeLeft.seconds, label: "Seconds" },
+      ].map((item, idx) => (
+        <div key={idx} className="flex flex-col items-center">
+          <div className="w-full aspect-square sm:w-32 sm:h-32 bg-zinc-50 dark:bg-zinc-900 rounded-3xl border-2 border-zinc-200 dark:border-zinc-800 flex items-center justify-center shadow-xl mb-3 relative overflow-hidden group">
+            <div className="absolute inset-x-0 bottom-0 h-1 bg-[#007b8a] opacity-0 group-hover:opacity-100 transition-opacity" />
+            <span className="text-3xl sm:text-5xl font-black text-zinc-900 dark:text-white tracking-tighter">
+              {String(item.value).padStart(2, '0')}
+            </span>
+          </div>
+          <span className="text-xs sm:text-sm font-bold uppercase tracking-[0.2em] text-[#007b8a]">
+            {item.label}
+          </span>
+        </div>
+      ))}
+    </div>
   );
 }
