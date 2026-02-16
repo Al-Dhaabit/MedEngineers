@@ -153,9 +153,7 @@ export async function POST(req: NextRequest) {
             };
 
             if (colName === "attendees") {
-                updateData.status = "approved";
-                // Legacy field support if needed, but keeping clean for now based on request
-                // updateData.paid = true; 
+                updateData.isPaid = true;
             }
 
             console.log(`[Webhook] Updating ${colName}/${doc.id}`, updateData);
