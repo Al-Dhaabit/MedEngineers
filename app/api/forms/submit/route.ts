@@ -20,25 +20,9 @@ export async function POST(req: NextRequest) {
     let session: any = null;
     let formType: string = "competitor";
     let decodedToken: any = null;
-    
+
     try {
         logger.info('Form submission attempt', { requestId });
-
-        // 0. Rate limiting check (DISABLED FOR DEVELOPMENT)
-        /*
-        const rateLimit = rateLimitMiddleware(req);
-        if (!rateLimit.success) {
-            logRateLimit('client', rateLimit.error || 'Unknown rate limit error');
-            return NextResponse.json(
-                { 
-                    error: "Too many requests. Please try again later.",
-                    code: "RATE_LIMITED",
-                    retryAfter: rateLimit.retryAfter 
-                },
-                { status: 429 }
-            );
-        }
-        */
 
         const body = await req.json();
         const { responses, type = "competitor", idToken } = body;
@@ -51,39 +35,35 @@ export async function POST(req: NextRequest) {
         }
 
         try {
-            // Verify token and check for revocation
+            // Verify token and check for revocation (true) 
+            // If the user's account is disabled or their password is changed, the token will be revoked
             decodedToken = await adminAuth.verifyIdToken(idToken, true);
-            
-            // Additional security checks
+
+            // Email verification check to prevent bot spamming 
             if (!decodedToken.email_verified) {
-                logger.warn('Unverified email attempted submission', { 
-                    requestId, 
-                    email: decodedToken.email 
+                logger.warn('Unverified email attempted submission', {
+                    requestId,
+                    email: decodedToken.email
                 });
-                return NextResponse.json({ 
-                    error: "Email must be verified to submit applications" 
+                return NextResponse.json({
+                    error: "Email must be verified to submit applications"
                 }, { status: 401 });
             }
-            
-            // Check token expiry (already handled by verifyIdToken but explicit check)
-            if (decodedToken.exp && decodedToken.exp < Date.now() / 1000) {
-                return NextResponse.json({ error: "Token expired" }, { status: 401 });
-            }
-            
+
         } catch (error) {
-            logger.error('Token verification failed', { 
-                requestId, 
+            logger.error('Token verification failed', {
+                requestId,
                 error: error instanceof Error ? error.message : String(error)
             });
-            return NextResponse.json({ 
-                error: "Invalid authentication token" 
+            return NextResponse.json({
+                error: "Invalid authentication token"
             }, { status: 401 });
         }
 
         if (!decodedToken.email) {
             logger.warn('Token missing email claim', { requestId });
-            return NextResponse.json({ 
-                error: "Invalid authentication token" 
+            return NextResponse.json({
+                error: "Invalid authentication token"
             }, { status: 401 });
         }
 
@@ -91,13 +71,13 @@ export async function POST(req: NextRequest) {
         logger.debug('Validating form input', { requestId });
         logger.debug('Request body:', { requestId, body });
         logger.debug('Form type:', { requestId, type });
-        
+
         const validation = validateFormSubmission(body, type);
-        
+
         if (!validation.success) {
             logValidationError(validation.details || [], decodedToken.email);
             return NextResponse.json(
-                { 
+                {
                     error: validation.details?.join(', ') || "Invalid form data. Please check your input and try again.",
                     code: validation.code,
                     details: validation.details
@@ -109,30 +89,30 @@ export async function POST(req: NextRequest) {
         // Additional security: Check if token was recently used (prevent replay attacks)
         const tokenHash = Buffer.from(idToken).toString('base64').substring(0, 32);
         const recentTokenKey = `recent_token_${decodedToken.uid}_${tokenHash}`;
-        
+
         // In production, use Redis for this. For now, using memory with cleanup
         if (global.recentTokens?.has(recentTokenKey)) {
-            logger.warn('Token reuse detected', { 
-                requestId, 
-                uid: decodedToken.uid 
+            logger.warn('Token reuse detected', {
+                requestId,
+                uid: decodedToken.uid
             });
-            return NextResponse.json({ 
-                error: "Invalid request - token already used" 
+            return NextResponse.json({
+                error: "Invalid request - token already used"
             }, { status: 401 });
         }
-        
+
         // Store token hash to prevent reuse (expires in 5 minutes)
         if (!global.recentTokens) {
             global.recentTokens = new Map();
         }
         global.recentTokens.set(recentTokenKey, Date.now());
-        
+
         // Cleanup old tokens
         setTimeout(() => {
             global.recentTokens?.delete(recentTokenKey);
         }, 5 * 60 * 1000);
 
-        logger.info('Authentication successful', { 
+        logger.info('Authentication successful', {
             requestId,
             uid: decodedToken.uid,
             email: decodedToken.email,
@@ -140,10 +120,6 @@ export async function POST(req: NextRequest) {
         });
 
         // === CODE ADDED BY AHMAD FOR FIREBASE === //
-        console.log("=== RECIEVED DATA ===")
-        console.log("Received responses:", responses);
-        console.log("Received type:", type);
-        console.log("Received idToken:", idToken);
 
         // Storing form submission to Firebase
         if (type === "attendee" && idToken) {
@@ -154,6 +130,11 @@ export async function POST(req: NextRequest) {
                 // check if user already exists in attendees collection
                 const userDoc = await adminDb.collection("attendees").doc(uid).get();
                 if (userDoc.exists) {
+                    logger.warn('User already exists', {
+                        requestId,
+                        uid: decodedToken.uid,
+                        email: decodedToken.email
+                    });
                     return NextResponse.json(
                         { error: "User already exists" },
                         { status: 409 }
@@ -163,28 +144,29 @@ export async function POST(req: NextRequest) {
                 // Store the form submission to Firebase// Store in attendees collection (if user doesn't exist)
                 await adminDb.collection("attendees").doc(uid).set({
                     fullName: responses["1706880442"] || "",
-                    email: responses["464604082"] || session.user.email,
+                    email: responses["464604082"] || decodedToken.email,
                     contactNo: responses["1329997643"] || "",
                     nationality: responses["492691881"] || "",
                     emiratesID: responses["1368274746"] || "",
                     major: responses["1740303904"] || "",
-                    paid: false,
+                    isPayed: false,
                     submitted: true,
                     submittedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 }, { merge: true });
 
-                console.log("=== FORM SUBMITTED ===")
-                console.log("Form submitted successfully for user:", uid);
+                logger.info("Form submitted successfully for user (attendee)", { uid });
+
             } catch (fbError) {
                 logger.error('Firebase submission failed', {
                     requestId,
                     type: 'attendee',
                     error: fbError
                 });
-                
+
                 // Return proper error response to client
                 return NextResponse.json(
-                    { 
+                    {
                         error: "Failed to save application to database",
                         code: "FIREBASE_SAVE_ERROR"
                     },
@@ -199,6 +181,11 @@ export async function POST(req: NextRequest) {
                 // check if user already exists in attendees collection
                 const userDoc = await adminDb.collection("competitors").doc(uid).get();
                 if (userDoc.exists) {
+                    logger.warn('User already exists', {
+                        requestId,
+                        uid: decodedToken.uid,
+                        email: decodedToken.email
+                    });
                     return NextResponse.json(
                         { error: "User already exists" },
                         { status: 409 }
@@ -230,7 +217,6 @@ export async function POST(req: NextRequest) {
                         submittedAt: admin.firestore.FieldValue.serverTimestamp(),
                         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                         isPayed: false,
-                        submitted: true,
                         domain: "",
                         attended: false,
                     }, { merge: true });
@@ -259,23 +245,23 @@ export async function POST(req: NextRequest) {
                         submittedAt: admin.firestore.FieldValue.serverTimestamp(),
                         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                         isPayed: false,
-                        submitted: true,
                         status: "pending",
                         domain: "",
                         attended: false,
                     }, { merge: true });
                 }
 
-                console.log("=== FORM SUBMITTED (COMPETITOR - " + responses["563534208"] + ") ===")
-                console.log("Form submitted successfully for user:", uid);
+                logger.info("Form submitted successfully for user (competitor)", { uid, major: responses["563534208"] });
 
             } catch (fbError) {
-                console.error("=== FORM SUBMISSION FAILED (COMPETITOR) ===")
-                console.error("Firebase error:", fbError);
-                
-                // Return proper error response to client
+                logger.error('Firebase submission failed', {
+                    requestId,
+                    type: 'competitor',
+                    error: fbError
+                });
+
                 return NextResponse.json(
-                    { 
+                    {
                         error: "Failed to save application to database",
                         code: "FIREBASE_SAVE_ERROR"
                     },
@@ -292,10 +278,6 @@ export async function POST(req: NextRequest) {
         const publishedFormId = type === "attendee"
             ? process.env.ATTENDEE_FORM_PUBLISHED_ID
             : process.env.GOOGLE_FORM_PUBLISHED_ID;
-
-        const sheetId = type === "attendee"
-            ? process.env.ATTENDEE_SHEET_ID
-            : process.env.GOOGLE_SHEET_ID;
 
         if (!formId || !publishedFormId) {
             return NextResponse.json(
@@ -365,15 +347,6 @@ export async function POST(req: NextRequest) {
             }
         });
 
-        // DEBUG: Log exactly what we're sending to Google Forms
-        console.log("=== GOOGLE FORMS SUBMISSION DEBUG ===");
-        console.log("Submit URL:", `https://docs.google.com/forms/d/e/${publishedFormId}/formResponse`);
-        console.log("URLSearchParams entries:");
-        for (const [key, value] of submitData.entries()) {
-            console.log(`  ${key} = ${value}`);
-        }
-        console.log("Full query string length:", submitData.toString().length);
-
         // ============================================
         // SUBMIT TO FORMS (Primary - must succeed)
         // ============================================
@@ -389,18 +362,12 @@ export async function POST(req: NextRequest) {
 
         if (!formsSuccess) {
             const errorText = await formSubmitResponse.text();
-            console.error("Google Forms submission failed:", formSubmitResponse.status);
-            console.error("Response body:", errorText);
+            logger.error("Google Forms submission failed", { status: formSubmitResponse.status, error: errorText, requestId });
             return NextResponse.json(
                 { error: "Form submission failed", details: errorText },
                 { status: 500 }
             );
         }
-
-        console.log("Google Forms submission successful!");
-
-        // Note: Google Forms automatically writes to its linked Sheet,
-        // so we don't need a separate Sheets API call here.
 
         // Record successful submission for rate limiting
         logSubmission(decodedToken.email, type, true);
@@ -421,11 +388,11 @@ export async function POST(req: NextRequest) {
             requestId,
             error
         });
-        
+
         logSubmission(decodedToken?.email || 'unknown', formType, false, error);
-        
+
         return NextResponse.json(
-            { 
+            {
                 error: "Failed to submit form. Please try again.",
                 code: "SUBMISSION_ERROR"
             },

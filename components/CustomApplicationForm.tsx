@@ -113,7 +113,7 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
 
     // The question index (0-indexed) that triggers the skip logic
     // This is typically "What major are you in?" - we'll detect it by label
-    const MAJOR_QUESTION_KEYWORDS = ["what major are you in", "what is your major and year of study"];
+    const MAJOR_QUESTION_KEYWORDS = ["what major are you in", "what is your major and year of study", "what field are you in"];
 
     // ===== TEST DATA GENERATOR =====
     const fillTestData = (targetMajor: "Engineering" | "Medicine") => {
@@ -622,8 +622,8 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
             clearStoredData();
             clearCSRFToken();
 
-            // Store securely with integrity checks
-            const stored = storeFormData(submissionPayload, formType);
+            // Store securely with integrity checks using secureStorage
+            const stored = await storeFormData(submissionPayload, formType);
             if (!stored) {
                 setError("Failed to prepare form for submission. Please try again.");
                 return;
@@ -699,120 +699,121 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
     // Restore responses after OAuth redirect and AUTO-SUBMIT
     useEffect(() => {
         if (user && !authLoading) {
-            const storedData = retrieveFormData();
+            (async () => {
+                // Correctly get data from session using secureStorage
+                const storedData = await retrieveFormData();
 
-            if (storedData) {
-                const { payload, formType } = storedData;
+                if (storedData) {
+                    const { payload, formType } = storedData;
 
-                // Validate CSRF token
-                const urlParams = new URLSearchParams(window.location.search);
-                let csrfToken = urlParams.get('csrf_token');
+                    // Validate CSRF token
+                    const urlParams = new URLSearchParams(window.location.search);
+                    let csrfToken = urlParams.get('csrf_token');
 
-                // For popup flows, the token won't be in the URL, so we check sessionStorage
-                if (!csrfToken) {
-                    csrfToken = getStoredCSRFToken();
-                }
+                    // For popup flows, the token won't be in the URL, so we check sessionStorage
+                    if (!csrfToken) {
+                        csrfToken = getStoredCSRFToken();
+                    }
 
-                if (!csrfToken || !validateCSRFToken(csrfToken)) {
-                    setError("Security validation failed. Please try submitting again.");
+                    if (!csrfToken || !validateCSRFToken(csrfToken)) {
+                        setError("Security validation failed. Please try submitting again.");
+                        clearStoredData();
+                        clearCSRFToken();
+                        return;
+                    }
+
+                    // POST AUTH SUBMISSION DATA CHECK
+                    console.log("=== POST-AUTH SUBMISSION DATA ===");
+                    console.log("User email:", user.email);
+                    console.log("Recovered Payload:", payload);
+
+                    // Clear storage immediately to prevent re-triggering
                     clearStoredData();
                     clearCSRFToken();
-                    return;
-                }
 
-                // POST AUTH SUBMISSION DATA CHECK
-                console.log("=== POST-AUTH SUBMISSION DATA ===");
-                console.log("User email:", user.email);
-                console.log("Recovered Payload:", payload);
+                    // Set form type for display
+                    if (formType === "competitor" || formType === "attendee") {
+                        setFormType(formType);
+                    }
 
-                // Clear storage immediately to prevent re-triggering
-                clearStoredData();
-                clearCSRFToken();
+                    // Auto-submit immediately
+                    setAutoSubmitting(true);
 
-                // Set form type for display
-                if (formType === "competitor" || formType === "attendee") {
-                    setFormType(formType);
-                }
+                    let submitTimeout: NodeJS.Timeout | null = null;
 
-                // Auto-submit immediately
-                setAutoSubmitting(true);
-
-                let submitTimeout: NodeJS.Timeout | null = null;
-
-                (async () => {
-                    try {
-                        setSubmitting(true);
-                        setError(null);
-
-                        // Add timeout to handle cases where auto-submit might hang
-                        submitTimeout = setTimeout(() => {
-                            console.error("Auto-submit timeout - clearing state");
-                            setAutoSubmitting(false);
-                            setSubmitting(false);
-                            setError("Submission timed out. Please try submitting again.");
-                        }, 30000); // 30 second timeout
-
-                        // Retrieve firebase ID token
-                        let firebaseIdToken = null;
+                    (async () => {
                         try {
-                            // Get the token directly from the current Firebase user
-                            firebaseIdToken = await user.getIdToken(true);
-                        } catch (tokenError) {
-                            console.error("Failed to get Firebase ID token", tokenError);
-                        }
+                            setSubmitting(true);
+                            setError(null);
 
-                        // Payload will be used in storing data to Firebase
-                        // Payload is already transformed with Entry IDs
-                        const res = await fetch("/api/forms/submit", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                                responses: payload,
-                                type: formType || "competitor",
-                                idToken: firebaseIdToken
-                            }),
-                        });
-
-                        if (!res.ok) {
-                            const data = await res.json();
-
-                            // Handle duplicate submission specifically
-                            if (res.status === 409 && data.error === "User already exists") {
-                                setError("You have already submitted an application. Please check your email for status updates.");
+                            // Add timeout to handle cases where auto-submit might hang
+                            submitTimeout = setTimeout(() => {
+                                console.error("Auto-submit timeout - clearing state");
                                 setAutoSubmitting(false);
                                 setSubmitting(false);
-                                return;
+                                setError("Submission timed out. Please try submitting again.");
+                            }, 30000); // 30 second timeout
+
+                            // Retrieve firebase ID token
+                            let firebaseIdToken = null;
+                            try {
+                                // Get the token directly from the current Firebase user
+                                firebaseIdToken = await user.getIdToken(true);
+                            } catch (tokenError) {
+                                console.error("Failed to get Firebase ID token", tokenError);
                             }
 
-                            throw new Error(data.error || "Failed to submit");
-                        }
+                            // Payload will be used in storing data to Firebase
+                            // Payload is already transformed with Entry IDs
+                            const res = await fetch("/api/forms/submit", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                    responses: payload,
+                                    type: formType || "competitor",
+                                    idToken: firebaseIdToken
+                                }),
+                            });
 
-                        setAutoSubmitSuccess(true);
+                            if (!res.ok) {
+                                const data = await res.json();
 
-                        // Wait for checkmark animation (2000ms), then fade out
-                        setTimeout(() => {
-                            setIsExiting(true);
+                                // Handle duplicate submission specifically
+                                if (res.status === 409 && data.error === "User already exists") {
+                                    setError("You have already submitted an application. Please check your email for status updates.");
+                                    setAutoSubmitting(false);
+                                    setSubmitting(false);
+                                    return;
+                                }
+                            }
 
-                            // Wait for fade out (300ms) then switch UI
+                            setAutoSubmitSuccess(true);
+
+                            // Wait for checkmark animation (2000ms), then fade out
                             setTimeout(() => {
-                                if (submitTimeout) clearTimeout(submitTimeout); // Clear the timeout
-                                setSuccess(true);
-                                onSubmitSuccess?.();
-                                setAutoSubmitting(false);
-                                setAutoSubmitSuccess(false);
-                                setIsExiting(false);
-                            }, 300);
-                        }, 2000);
-                    } catch (err) {
-                        if (submitTimeout) clearTimeout(submitTimeout); // Clear the timeout on error
-                        console.error("Auto-submit error:", err);
-                        setError(err instanceof Error ? err.message : "Failed to submit form");
-                        setAutoSubmitting(false);
-                    } finally {
-                        setSubmitting(false);
-                    }
-                })();
-            }
+                                setIsExiting(true);
+
+                                // Wait for fade out (300ms) then switch UI
+                                setTimeout(() => {
+                                    if (submitTimeout) clearTimeout(submitTimeout); // Clear the timeout
+                                    setSuccess(true);
+                                    onSubmitSuccess?.();
+                                    setAutoSubmitting(false);
+                                    setAutoSubmitSuccess(false);
+                                    setIsExiting(false);
+                                }, 300);
+                            }, 2000);
+                        } catch (err) {
+                            if (submitTimeout) clearTimeout(submitTimeout); // Clear the timeout on error
+                            console.error("Auto-submit error:", err);
+                            setError(err instanceof Error ? err.message : "Failed to submit form");
+                            setAutoSubmitting(false);
+                        } finally {
+                            setSubmitting(false);
+                        }
+                    })();
+                }
+            })();
         }
     }, [user, authLoading]);
 
@@ -1531,7 +1532,8 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                             >
                                 Competitor
                             </button>
-                            <button
+                            {/* Attendee toggle is disabled until further notice */}
+                            {/* <button
                                 onClick={() => setFormType("attendee")}
                                 className={`px-4 py-2 rounded-md text-sm font-semibold transition-all ${formType === "attendee"
                                     ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm"
@@ -1539,7 +1541,7 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                                     }`}
                             >
                                 Attendee
-                            </button>
+                            </button> */}
                         </div>
                     </div>
                 </div>

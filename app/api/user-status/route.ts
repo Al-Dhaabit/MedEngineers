@@ -15,8 +15,8 @@ export async function POST(req: NextRequest) {
         if (userDoc.exists && userDoc.data()?.submitted === true) {
             const userData = userDoc.data();
             if (userData) {
-                return NextResponse.json({ 
-                    status: true, 
+                return NextResponse.json({
+                    status: true,
                     type: "attendee",
                     actualStatus: userData.status || "pending"
                 }, { status: 200 });
@@ -28,8 +28,8 @@ export async function POST(req: NextRequest) {
         if (competitorDoc.exists && competitorDoc.data()?.submitted === true) {
             const competitorData = competitorDoc.data();
             if (competitorData) {
-                return NextResponse.json({ 
-                    status: true, 
+                return NextResponse.json({
+                    status: true,
                     type: "competitor",
                     actualStatus: competitorData.status || "pending"
                 }, { status: 200 });

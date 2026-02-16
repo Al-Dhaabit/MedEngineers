@@ -1,26 +1,24 @@
-"use client";
-
-import { useAuth } from "@/lib/AuthContext";
+import { signOut } from "firebase/auth";
 import { auth } from "@/lib/Firebase";
 
 export function Hero() {
-  const { signOut } = useAuth();
+  // const { signOut } = useAuth(); // Removed useAuth
 
   const handleSignOut = async () => {
     console.log("=== USER SIGN OUT ===");
 
     try {
       console.log("Signing out from Firebase...");
-      await signOut();
+      await signOut(auth);
       console.log("Firebase sign out completed");
 
       // Wait longer to ensure Firebase state is fully cleared
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       // Verify user is actually signed out before reload
       const currentUser = auth.currentUser;
       console.log("Current user after sign out:", currentUser);
-      
+
       if (currentUser) {
         console.log("User still exists, forcing sign out...");
         await auth.signOut();
@@ -44,7 +42,6 @@ export function Hero() {
       window.location.href = window.location.origin;
     }
   };
-
   return (
     <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black">
       {/* Background Image with Dark Overlay */}
@@ -103,7 +100,7 @@ export function Hero() {
 
           <div className="mt-5 sm:mt-7 flex flex-col sm:flex-row items-center justify-center gap-3 text-white/95 font-medium tracking-wide">
             <span className="text-4xl sm:text-3xl">🇦🇪</span>
-            <span className="text-lg sm:text-xl md:text-2xl uppercase tracking-widest font-light text-center max-w-md">
+            <span className="text-lg sm:text-xl md:text-2xl uppercase tracking-widest font-light text-center">
               Where Medicine meets Engineering
             </span>
           </div>

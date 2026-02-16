@@ -17,9 +17,9 @@ export function EventDetails() {
         <MapPinIcon className="w-16 h-16 text-[#007b8a] group-hover:scale-110 transition-transform duration-300" />
       ),
       button: (
-        <a 
-          href="https://maps.app.goo.gl/z2NabdBEqknaJiQo8" 
-          target="_blank" 
+        <a
+          href="https://maps.app.goo.gl/z2NabdBEqknaJiQo8"
+          target="_blank"
           rel="noopener noreferrer"
           className="mt-3 inline-flex items-center text-sm font-medium text-[#007b8a] hover:text-white group-hover:text-white transition-colors duration-300"
         >
@@ -46,9 +46,9 @@ export function EventDetails() {
       </div>
 
       {/* Background Image with Gradient Overlay */}
-      <div 
+      <div
         className="absolute inset-0 z-0 bg-cover bg-center bg-fixed"
-        style={{ 
+        style={{
           backgroundImage: 'url("/images/medhack_bg.png")',
           filter: 'grayscale(100%) brightness(0.3)'
         }}
@@ -72,18 +72,18 @@ export function EventDetails() {
         <div className="mt-16 sm:mt-20">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {details.map((item, index) => (
-              <div 
+              <div
                 key={item.name}
                 className="group relative bg-gradient-to-br from-gray-900/80 to-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-800 hover:border-[#007b8a]/30 transition-all duration-300 hover:shadow-[0_0_20px_rgba(0,123,138,0.2)] overflow-hidden"
               >
                 {/* Animated background effect */}
                 <div className="absolute inset-0 bg-gradient-to-br from-[#007b8a]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                
+
                 {/* Icon container */}
                 <div className="relative z-10 w-20 h-20 mx-auto mb-6 flex items-center justify-center rounded-full bg-gray-900/50 group-hover:border-[#007b8a]/50 transition-colors duration-300">
                   {item.icon}
                 </div>
-                
+
                 {/* Content */}
                 <div className="relative z-10 text-center">
                   <h3 className="text-2xl font-bold text-white mb-2">{item.name}</h3>
@@ -93,7 +93,7 @@ export function EventDetails() {
                   )}
                   {item.button && item.button}
                 </div>
-                
+
                 {/* Decorative elements */}
                 <div className="absolute -bottom-4 -right-4 w-24 h-24 rounded-full bg-[#007b8a]/10 group-hover:bg-[#007b8a]/20 transition-all duration-500" />
               </div>

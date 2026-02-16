@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useRef } from "react";
 import { CustomApplicationForm } from "./CustomApplicationForm";
-import { onAuthStateChanged, signOut } from "firebase/auth";
-import { useTicketTailorWidget } from "@/hooks/useTicketTailorWidget";
+import { onAuthStateChanged, signOut, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { TicketTailorWidget } from "@/components/TicketTailorWidget";
 import { auth } from "@/lib/Firebase";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/lib/AuthContext";
+import { retrieveFormData, hasValidStoredData, clearStoredData } from "@/lib/secureStorage";
 
-type UserStatus = "guest" | "pending" | "approved" | "domain_ai";
+type UserStatus = "guest" | "pending" | "approved" | "loading" | "domain_ai";
 
 // Domain recommendation types
 interface DomainScore {
@@ -35,19 +35,30 @@ interface SubmissionResult {
 
 export function RegistrationSection() {
   // Mock state to demonstrate the flow. In a real app, this comes from the backend.
-  const [status, setStatus] = useState<UserStatus>("guest");
+
+  // Initialize with a dedicated 'loading' status to prevent Guest UI flicker
+  const [status, setStatus] = useState<UserStatus>("loading");
   const [currentUser, setCurrentUser] = useState<any>(null);
+
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   const [statusCheckMessage, setStatusCheckMessage] = useState<string>("");
   const [hasCheckedStatus, setHasCheckedStatus] = useState(false);
-  const { signInWithGoogle } = useAuth();
+
 
   // Check if user has submitted form or not using onAuthStateChange
   useEffect(() => {
+    const checkLocalCache = () => {
+      if (typeof window !== 'undefined' && hasValidStoredData()) {
+        setStatus("pending")
+      }
+    };
+    checkLocalCache();
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
           // Send the UID to check against your collections
+          setIsCheckingStatus(true);
           const res = await fetch("/api/user-status", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -55,16 +66,19 @@ export function RegistrationSection() {
           });
 
           const data = await res.json();
+
           // If the API confirms submission, update the status based on actualStatus
           if (data.status === true) {
-            // Use the actual status from the backend (pending, accepted, rejected)
             const actualStatus = data.actualStatus?.toLowerCase();
+
+            clearStoredData();
+
             if (actualStatus === "accepted") {
               setStatus("approved");
             } else if (actualStatus === "rejected") {
               setStatus("guest"); // Or you could add a "rejected" state
             } else {
-              setStatus("pending");
+              setStatus("pending")
             }
 
             // Store user and submission info in state
@@ -76,6 +90,8 @@ export function RegistrationSection() {
             });
 
           } else {
+            // no application in db
+            clearStoredData();
             setStatus("guest");
             setCurrentUser({
               ...user,
@@ -89,15 +105,35 @@ export function RegistrationSection() {
           }
         } catch (error) {
           console.error("Auth check failed", error);
+          setStatus("guest");
           setCurrentUser(null);
         }
       } else {
+        // not logged in 
         setStatus("guest");
         setCurrentUser(null);
       }
     });
     return () => unsubscribe();
-  }, []);
+  }, [hasCheckedStatus]); // Added dependency
+
+  // Handle manual status check
+  const handleCheckStatus = async () => {
+    setIsCheckingStatus(true);
+    setStatusCheckMessage("");
+    setHasCheckedStatus(true);
+
+    try {
+      const provider = new GoogleAuthProvider();
+      const result = await signInWithPopup(auth, provider);
+      // The onAuthStateChanged hook will handle the rest
+    } catch (error: any) {
+      console.error("Status check login failed", error);
+      setStatusCheckMessage(error.message || "Failed to sign in");
+    } finally {
+      setIsCheckingStatus(false);
+    }
+  };
 
   // Add periodic status checking for pending users
   useEffect(() => {
@@ -139,12 +175,20 @@ export function RegistrationSection() {
   };
 
   // Handle logout
-  const handleLogout = () => {
-    signOut(auth);
-  };
+  const handleLogout = async () => {
+    try {
+      // Step A: Clear UI and Local Cache first
+      setStatus("guest");
+      setCurrentUser(null);
+      clearStoredData();
 
-  // Initialize Ticket Tailor widget
-  const ticketWidgetRef = useTicketTailorWidget();
+
+      // Step B: Tell Firebase to kill the session
+      await signOut(auth);
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
 
   // Domain AI state
   const [domainLoading, setDomainLoading] = useState(false);
@@ -212,21 +256,7 @@ export function RegistrationSection() {
     }
   };
 
-  const handleCheckStatus = async () => {
-    setIsCheckingStatus(true);
-    setStatusCheckMessage(""); // Clear any previous messages
-    setHasCheckedStatus(false); // Reset check status
-    try {
-      await signInWithGoogle();
-      setHasCheckedStatus(true); // Mark that we performed a status check
-      // The useEffect will handle the status check after sign-in
-    } catch (error) {
-      console.error("Error checking status:", error);
-      setStatusCheckMessage("Failed to sign in. Please try again.");
-    } finally {
-      setIsCheckingStatus(false);
-    }
-  };
+
 
   const getDomainColor = (domain: string) => {
     switch (domain) {
@@ -271,7 +301,10 @@ export function RegistrationSection() {
               <div className="flex flex-col">
                 <span className="text-xs font-bold text-[#007b8a] uppercase tracking-wider">Signed in as</span>
                 <span className="text-sm font-medium text-zinc-900 dark:text-white truncate max-w-[150px] sm:max-w-none">
-                  {currentUser.displayName || currentUser.email}
+                  {currentUser.displayName}
+                </span>
+                <span className="text-xs font-medium text-zinc-900 dark:text-white truncate max-w-[150px] sm:max-w-none">
+                  {currentUser.email}
                 </span>
               </div>
             </div>
@@ -571,8 +604,8 @@ export function RegistrationSection() {
             {hasCheckedStatus && statusCheckMessage && (
               <div className="mx-auto max-w-4xl mb-8">
                 <div className={`rounded-xl p-6 border ${statusCheckMessage.includes("No application")
-                    ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
-                    : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
+                  ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
+                  : "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
                   }`}>
                   <div className="text-center">
                     {statusCheckMessage.includes("No application") ? (
@@ -765,25 +798,45 @@ export function RegistrationSection() {
               )}
             </div>
 
-            <div className="mx-auto max-w-4xl bg-white dark:bg-zinc-900 rounded-3xl shadow-xl ring-1 ring-zinc-200 dark:ring-zinc-800 overflow-hidden">
-              <div className="bg-[#007b8a] px-6 py-4">
-                <h3 className="text-white font-semibold">Official Ticket Counter</h3>
+            <div className="mx-auto max-w-4xl bg-white rounded-3xl shadow-xl ring-1 ring-zinc-200 overflow-hidden">
+              <div className="bg-[#007b8a] px-6 py-4 flex items-center justify-center">
+                <h3 className="text-white font-bold text-lg">OFFICIAL TICKET</h3>
               </div>
-              <div className="p-6">
-                <div
-                  ref={ticketWidgetRef}
-                  className="min-h-[400px] flex items-center justify-center"
-                >
-                  <div className="text-center p-4">
-                    <p className="text-zinc-500 dark:text-zinc-400 italic">Loading ticket information...</p>
-                  </div>
-                </div>
+              <div className="p-8">
+                <TicketTailorWidget />
               </div>
+            </div>
+
+            <div className="mt-8 text-center text-sm text-zinc-500 max-w-md mx-auto">
+              <p>Having trouble with the widget? <a href="https://www.tickettailor.com/events/medhack/1154817" target="_blank" rel="noopener noreferrer" className="text-[#007b8a] hover:underline">Click here to open booking page directly</a></p>
             </div>
           </div>
         )}
 
-      </div>
-    </section>
+        {/* 4. LOADING VIEW: Smooth Transition State */}
+        {status === "loading" && (
+          <div className="flex flex-col items-center justify-center py-32 animate-in fade-in zoom-in-95 duration-500">
+            <div className="relative w-24 h-24 mb-8">
+              {/* Pulse effect */}
+              <div className="absolute inset-0 bg-[#007b8a]/20 rounded-full animate-ping" />
+              <div className="relative z-10 w-24 h-24 bg-white dark:bg-zinc-900 rounded-full flex items-center justify-center border-2 border-[#007b8a] shadow-xl">
+                <svg className="w-10 h-10 text-[#007b8a] animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                </svg>
+              </div>
+            </div>
+            <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-2">
+              Loading MedHack...
+            </h3>
+            <p className="text-zinc-500 dark:text-zinc-400">
+              Checking your application status
+            </p>
+          </div>
+        )}
+
+
+
+      </div >
+    </section >
   );
 }
