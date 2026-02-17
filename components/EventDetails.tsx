@@ -31,7 +31,6 @@ export function EventDetails() {
     {
       name: 'Schedule',
       description: '9:00 AM - 6:00 PM',
-      subDescription: 'Full day of workshops and activities',
       icon: (
         <ClockIcon className="w-16 h-16 text-[#007b8a] group-hover:scale-110 transition-transform duration-300" />
       ),
