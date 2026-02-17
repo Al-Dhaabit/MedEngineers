@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "set-admin": "tsx scripts/setAdmin.ts"
+    "set-admin": "tsx scripts/setAdmin.ts",
+    "check-admin": "tsx scripts/checkAdmin.ts"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

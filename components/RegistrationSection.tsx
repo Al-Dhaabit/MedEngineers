@@ -68,10 +68,13 @@ export function RegistrationSection() {
       setIsCheckingStatus(true);
       console.log(`Checking status for UID: ${user.uid} (Attempt ${retryCount + 1})`);
 
+      // Get fresh ID token for authentication
+      const idToken = await user.getIdToken();
+
       const res = await fetch("/api/user-status", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uid: user.uid }),
+        body: JSON.stringify({ uid: user.uid, idToken }),
       });
 
       const data = await res.json();
@@ -207,10 +210,17 @@ export function RegistrationSection() {
     if ((status === "pending" || status === "approved") && currentUser?.hasSubmitted) {
       const interval = setInterval(async () => {
         try {
+          // Get fresh ID token for periodic status checks
+          const idToken = await auth.currentUser?.getIdToken();
+          if (!idToken) {
+            console.warn("No ID token available for status check");
+            return;
+          }
+
           const res = await fetch("/api/user-status", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ uid: currentUser.uid }),
+            body: JSON.stringify({ uid: currentUser.uid, idToken }),
           });
 
           const data = await res.json();

@@ -53,7 +53,7 @@ export function Hero() {
       </div>
 
       {/* Header Container */}
-      <div className="absolute top-5 sm:top-8 left-0 right-0 z-20 px-5 sm:px-8">
+      <div className="absolute top-2 sm:top-0 left-0 right-0 z-20 px-5 sm:px-8">
         <div className="flex flex-row justify-between items-center w-full max-w-7xl mx-auto gap-4">
           {/* Top Left Logo */}
           <div className="flex items-center">
@@ -74,7 +74,7 @@ export function Hero() {
               <img
                 src="/logos/aus_logo.svg"
                 alt="AUS Logo"
-                className="h-24 sm:h-32 w-auto object-contain"
+                className="h-32 sm:h-52 w-auto object-contain"
               />
             </div>
           </div>
@@ -99,10 +99,10 @@ export function Hero() {
             />
           </div>
 
-          <div className="mt-1 sm:mt-1 flex flex-col sm:flex-row items-center justify-center gap-3 text-white/95 font-medium tracking-wide">
+          <div className="-mt-2 sm:-mt-11 flex flex-col sm:flex-row items-center justify-center gap-1 text-white/95 font-medium tracking-wide">
             <span className="text-4xl sm:text-3xl">🇦🇪</span>
             <span className="text-lg sm:text-xl md:text-2xl uppercase tracking-widest font-light text-center">
-              Where Medicine meets Engineering
+              Where Medicine Meets Engineering
             </span>
           </div>
         </h1>
@@ -112,7 +112,7 @@ export function Hero() {
             href="#registration"
             className="group relative px-10 py-3.5 bg-[#007b8a] text-white font-bold rounded-full overflow-hidden transition-all hover:scale-105 active:scale-95 shadow-[0_0_25px_rgba(0,123,138,0.5)] text-lg w-full sm:w-auto text-center max-w-xs"
           >
-            <span className="relative z-10">Get Tickets</span>
+            <span className="relative z-10">Register</span>
             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
           </a>
           <a

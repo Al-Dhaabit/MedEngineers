@@ -1,15 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
-import { adminDb } from "@/lib/firebaseAdmin";
+import { adminDb, adminAuth } from "@/lib/firebaseAdmin";
 
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
-        const { uid } = body;
+        const { uid, idToken } = body;
 
         if (!uid) {
             return NextResponse.json({ error: "uid is required" }, { status: 400 });
         }
 
+        if (!idToken) {
+            return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+        }
+
+        // ============================================
+        // AUTHENTICATION & AUTHORIZATION
+        // ============================================
+        let decodedToken;
+        try {
+            // Verify the Firebase ID token
+            decodedToken = await adminAuth.verifyIdToken(idToken, true);
+        } catch (error) {
+            console.error("[UserStatus] Token verification failed:", error);
+            return NextResponse.json({ error: "Invalid authentication token" }, { status: 401 });
+        }
+
+        // Authorization: User can only read their own status, unless they're an admin
+        const isAdmin = decodedToken.admin === true;
+        const isOwnStatus = decodedToken.uid === uid;
+
+        if (!isOwnStatus && !isAdmin) {
+            console.log(`[UserStatus] Forbidden: ${decodedToken.email} tried to access ${uid}'s status`);
+            return NextResponse.json(
+                { error: "Forbidden - You can only view your own status" },
+                { status: 403 }
+            );
+        }
+
+        console.log(`[UserStatus] ${decodedToken.email} checking status for ${uid} (admin: ${isAdmin})`);
+
+        // ============================================
+        // FETCH USER STATUS
+        // ============================================
         // 1. Check Attendees collection
         const userDoc = await adminDb.collection("attendees").doc(uid).get();
         if (userDoc.exists && userDoc.data()?.submitted === true) {

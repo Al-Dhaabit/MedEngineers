@@ -16,6 +16,7 @@ export default function StatusManager({ competitorId, currentStatus }: StatusMan
         try {
             const response = await fetch('/api/admin/update-status', {
                 method: 'POST',
+                credentials: 'include', // Send session cookie
                 headers: {
                     'Content-Type': 'application/json',
                 },
@@ -29,12 +30,17 @@ export default function StatusManager({ competitorId, currentStatus }: StatusMan
                 setStatus(newStatus);
                 // Refresh the page to show updated data
                 window.location.reload();
+            } else if (response.status === 401 || response.status === 403) {
+                // Authentication/Authorization failed - redirect to admin login
+                alert('Session expired or insufficient permissions. Redirecting to login...');
+                window.location.href = '/admin';
             } else {
-                alert('Failed to update status');
+                const errorData = await response.json().catch(() => ({}));
+                alert(errorData.error || 'Failed to update status');
             }
         } catch (error) {
             console.error('Error updating status:', error);
-            alert('Error updating status');
+            alert('Error updating status. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -45,11 +51,10 @@ export default function StatusManager({ competitorId, currentStatus }: StatusMan
             <h3 className="font-semibold text-gray-700 mb-2">Status Management</h3>
             <div className="flex items-center gap-4">
                 <span className="font-medium">Current Status: </span>
-                <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    status === 'Accepted' ? 'bg-green-100 text-green-800' :
-                    status === 'Rejected' ? 'bg-red-100 text-red-800' :
-                    'bg-yellow-100 text-yellow-800'
-                }`}>
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${status === 'Accepted' ? 'bg-green-100 text-green-800' :
+                        status === 'Rejected' ? 'bg-red-100 text-red-800' :
+                            'bg-yellow-100 text-yellow-800'
+                    }`}>
                     {status || 'pending'}
                 </span>
             </div>
