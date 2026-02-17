@@ -112,7 +112,7 @@ export function Hero() {
             href="#registration"
             className="group relative px-10 py-3.5 bg-[#007b8a] text-white font-bold rounded-full overflow-hidden transition-all hover:scale-105 active:scale-95 shadow-[0_0_25px_rgba(0,123,138,0.5)] text-lg w-full sm:w-auto text-center max-w-xs"
           >
-            <span className="relative z-10">Get Tickets</span>
+            <span className="relative z-10">Register</span>
             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
           </a>
           <a
