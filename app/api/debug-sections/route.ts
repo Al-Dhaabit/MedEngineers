@@ -1,8 +1,24 @@
 // Debug endpoint to list all sections in the form
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
+import { verifyAdminSession } from "@/lib/adminAuth";
 
 export async function GET(req: NextRequest) {
+    // ============================================
+    // LAYER 1: Admin Authentication
+    // ============================================
+    try {
+        await verifyAdminSession();
+    } catch (error: any) {
+        const errorMessage = error.message || String(error);
+        console.warn('[DebugSections] Unauthorized access attempt', { error: errorMessage });
+
+        if (errorMessage.includes("FORBIDDEN")) {
+            return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 });
+        }
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const formType = searchParams.get("type") || "competitor";
 

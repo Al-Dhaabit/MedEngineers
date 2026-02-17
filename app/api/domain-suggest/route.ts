@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { google } from "googleapis";
 import { calculateDomainRecommendation, EngineerResponses, DomainRecommendation } from "@/lib/domainAlgorithm";
+import { verifyAdminSession } from "@/lib/adminAuth";
 
 interface SubmissionData {
     responses: Record<string, any>;
@@ -51,6 +52,21 @@ function getCacheAge(): number {
  */
 export async function GET(req: NextRequest) {
     try {
+        // ============================================
+        // LAYER 1: Admin Authentication
+        // ============================================
+        try {
+            await verifyAdminSession();
+        } catch (error: any) {
+            const errorMessage = error.message || String(error);
+            console.warn('[DomainSuggest] Unauthorized access attempt', { error: errorMessage });
+
+            if (errorMessage.includes("FORBIDDEN")) {
+                return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 });
+            }
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         const { searchParams } = new URL(req.url);
         const filterEmail = searchParams.get("email");
 
@@ -308,6 +324,21 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
     try {
+        // ============================================
+        // LAYER 1: Admin Authentication
+        // ============================================
+        try {
+            await verifyAdminSession();
+        } catch (error: any) {
+            const errorMessage = error.message || String(error);
+            console.warn('[DomainSuggest POST] Unauthorized access attempt', { error: errorMessage });
+
+            if (errorMessage.includes("FORBIDDEN")) {
+                return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 });
+            }
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         const body = await req.json();
         const { responses } = body;
 
