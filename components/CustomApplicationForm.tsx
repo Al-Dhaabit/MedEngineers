@@ -315,13 +315,13 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
             }
         }
 
-        // 3. Emirates ID Validation (Exactly 15 digits)
-        if (labelLower.includes("emirates id")) {
-            const digitsOnly = valString.replace(/\D/g, "");
-            if (digitsOnly.length !== 15) {
-                return "Emirates ID must be exactly 15 digits";
-            }
-        }
+        // 3. Emirates ID / Passport ID Validation
+        // if (labelLower.includes("emirates id")) {
+        //     const digitsOnly = valString.replace(/\D/g, "");
+        //     if (digitsOnly.length !== 15) {
+        //         return "Emirates ID must be exactly 15 digits";
+        //     }
+        // }
 
         // 4. Phone Number Validation (allows +, -, spaces, and numbers)
         if (
