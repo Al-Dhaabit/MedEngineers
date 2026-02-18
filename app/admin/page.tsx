@@ -1,14 +1,58 @@
 "use client"
 
-import { useState } from 'react'
-import { signInWithPopup, GoogleAuthProvider } from 'firebase/auth'
+import { useState, useEffect } from 'react'
+import { signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from 'firebase/auth'
 import { auth } from '@/lib/Firebase'
 import { useRouter } from 'next/navigation'
+import { isSafari } from '@/lib/browserDetection'
 
 export default function AdminLoginPage() {
     const [error, setError] = useState('')
     const [loading, setLoading] = useState(false)
+    const [initialCheck, setInitialCheck] = useState(true)
     const router = useRouter()
+
+    // Handle redirect result on mount
+    useEffect(() => {
+        const handleRedirectResult = async () => {
+            try {
+                const result = await getRedirectResult(auth);
+                if (result) {
+                    setLoading(true);
+                    // Get fresh token with admin claims
+                    const idToken = await result.user.getIdToken(true);
+
+                    // Verify admin privileges with backend
+                    const response = await fetch('/api/login-admin', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ idToken }),
+                    });
+
+                    if (!response.ok) {
+                        const data = await response.json();
+                        throw new Error(data.error || 'Access denied');
+                    }
+
+                    // Success - redirect to dashboard
+                    router.push('/admin/dashboard');
+                }
+            } catch (err: any) {
+                console.error("Redirect login error:", err);
+                setError(err.message || 'Failed to login');
+                await auth.signOut();
+            } finally {
+                setLoading(false);
+                setInitialCheck(false);
+            }
+        };
+
+        if (isSafari()) {
+            handleRedirectResult();
+        } else {
+            setInitialCheck(false);
+        }
+    }, [router]);
 
     const handleGoogleLogin = async () => {
         setError('')
@@ -16,26 +60,33 @@ export default function AdminLoginPage() {
 
         try {
             const googleProvider = new GoogleAuthProvider()
-            const userCredential = await signInWithPopup(auth, googleProvider)
+            if (isSafari()) {
+                console.log("Safari detected: using Redirect");
+                await signInWithRedirect(auth, googleProvider)
+            } else {
+                console.log("Non-Safari detected: using Popup");
+                const userCredential = await signInWithPopup(auth, googleProvider)
 
-            // Get fresh token with admin claims
-            const idToken = await userCredential.user.getIdToken(true)
+                // Get fresh token with admin claims
+                const idToken = await userCredential.user.getIdToken(true)
 
-            // Verify admin privileges with backend
-            const response = await fetch('/api/login-admin', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ idToken }),
-            })
+                // Verify admin privileges with backend
+                const response = await fetch('/api/login-admin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ idToken }),
+                })
 
-            if (!response.ok) {
-                const data = await response.json()
-                throw new Error(data.error || 'Access denied')
+                if (!response.ok) {
+                    const data = await response.json()
+                    throw new Error(data.error || 'Access denied')
+                }
+
+                // Success - redirect to dashboard
+                router.push('/admin/dashboard')
             }
-
-            // Success - redirect to dashboard
-            router.push('/admin/dashboard')
         } catch (err: any) {
+            console.error("Login error:", err);
             setError(err.message || 'Failed to login')
             // Sign out on error
             await auth.signOut()

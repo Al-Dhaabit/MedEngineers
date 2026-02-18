@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useRef } from "react";
 import { CustomApplicationForm } from "./CustomApplicationForm";
-import { onAuthStateChanged, signOut, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { onAuthStateChanged, signOut, signInWithPopup, signInWithRedirect, GoogleAuthProvider } from "firebase/auth";
 import { TicketTailorWidget } from "@/components/TicketTailorWidget";
 import { auth } from "@/lib/Firebase";
 import { Button } from "@/components/ui/button";
 import { retrieveFormData, hasValidStoredData, clearStoredData } from "@/lib/secureStorage";
+import { isSafari } from "@/lib/browserDetection";
 
 type UserStatus = "guest" | "pending" | "approved" | "rejected" | "loading" | "domain_ai" | "payment_success" | "final_phase" | "domain_selection";
 
@@ -195,7 +196,13 @@ export function RegistrationSection() {
 
     try {
       const provider = new GoogleAuthProvider();
-      const result = await signInWithPopup(auth, provider);
+      if (isSafari()) {
+        console.log("Using redirect for Safari");
+        await signInWithRedirect(auth, provider);
+      } else {
+        console.log("Using popup for non-Safari");
+        await signInWithPopup(auth, provider);
+      }
       // The onAuthStateChanged hook will handle the rest
     } catch (error: any) {
       console.error("Status check login failed", error);

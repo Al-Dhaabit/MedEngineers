@@ -1,6 +1,8 @@
 // Secure session storage with integrity checks and encryption
 // Production-ready Secure Storage using Web Crypto API (AES-GCM) with Fallback
 
+import { isSafari } from "./browserDetection";
+
 interface StoredEncryptedData {
   v: string;
   t: number;
@@ -13,6 +15,11 @@ interface StoredChecksumData {
   checksum: string;
   timestamp: number;
   version: string;
+}
+
+interface StoredDataChunk {
+  payload: any;
+  formType: string;
 }
 
 type StoredData = StoredEncryptedData | StoredChecksumData;
@@ -71,7 +78,7 @@ async function getEncryptionKey(): Promise<CryptoKey> {
     {
       name: "PBKDF2",
       salt: enc.encode("medhack-salt-2026"), // consistent salt for retrieval
-      iterations: 100000,
+      iterations: 1000,
       hash: "SHA-256",
     },
     keyMaterial,
@@ -81,10 +88,17 @@ async function getEncryptionKey(): Promise<CryptoKey> {
   );
 }
 
+// Helper to get the correct storage based on browser
+const getEffectiveStorage = () => {
+  if (typeof window === 'undefined') return null;
+  return isSafari() ? localStorage : sessionStorage;
+};
+
 // Storage availability check
 const isStorageAvailable = () => {
   try {
-    return typeof window !== 'undefined' && window.sessionStorage !== undefined;
+    const storage = getEffectiveStorage();
+    return storage !== null && storage !== undefined;
   } catch {
     return false;
   }
@@ -93,9 +107,10 @@ const isStorageAvailable = () => {
 // Store form data securely
 export async function storeFormData(payload: any, formType: string): Promise<boolean> {
   try {
+    const storage = getEffectiveStorage();
 
     // Storage availability check
-    if (!isStorageAvailable()) {
+    if (!storage) {
       console.error('Storage is not available');
       return false;
     }
@@ -129,12 +144,13 @@ export async function storeFormData(payload: any, formType: string): Promise<boo
           data: bufferToBase64(ciphertext),
         };
 
-        // Store in sessionStorage
-        sessionStorage.setItem('pendingFormSubmission', JSON.stringify(storedData));
-        sessionStorage.setItem('pendingFormType', formType);
+        // Store
+        storage.setItem('pendingFormSubmission', JSON.stringify(storedData));
+        storage.setItem('pendingFormType', formType);
 
-        console.log('Form data stored securely (V2 Encrypted). Type:', formType);
+        console.log(`Form data stored securely (V2 Encrypted) in ${isSafari() ? 'localStorage' : 'sessionStorage'}. Type:`, formType);
         return true;
+
       } catch (e) {
         console.error("Encryption failed, attempts fallback:", e);
         // If encryption fails, fall through to fallback
@@ -153,9 +169,9 @@ export async function storeFormData(payload: any, formType: string): Promise<boo
       version: STORAGE_VERSION_V1
     };
 
-    sessionStorage.setItem('pendingFormSubmission', JSON.stringify(storedData));
-    sessionStorage.setItem('pendingFormType', formType);
-    console.log('Form data stored with checksum (V1 Fallback). Type:', formType);
+    storage.setItem('pendingFormSubmission', JSON.stringify(storedData));
+    storage.setItem('pendingFormType', formType);
+    console.log(`Form data stored with checksum (V1 Fallback) in ${isSafari() ? 'localStorage' : 'sessionStorage'}. Type:`, formType);
     return true;
 
   } catch (error) {
@@ -166,16 +182,17 @@ export async function storeFormData(payload: any, formType: string): Promise<boo
 
 // Retrieve and verify form data
 export async function retrieveFormData(): Promise<{ payload: any; formType: string } | null> {
+  const storage = getEffectiveStorage();
 
   // Storage availability check
-  if (!isStorageAvailable()) {
+  if (!storage) {
     console.error('Storage is not available');
     return null;
   }
 
   try {
-    const storedStr = sessionStorage.getItem('pendingFormSubmission');
-    const formType = sessionStorage.getItem('pendingFormType');
+    const storedStr = storage.getItem('pendingFormSubmission');
+    const formType = storage.getItem('pendingFormType');
 
     if (!storedStr || !formType) {
       return null;
@@ -270,9 +287,12 @@ export async function retrieveFormData(): Promise<{ payload: any; formType: stri
 // Clear stored data
 export function clearStoredData(): void {
   try {
-    sessionStorage.removeItem('pendingFormSubmission');
-    sessionStorage.removeItem('pendingFormType');
-    console.log('Stored form data cleared');
+    const storage = getEffectiveStorage();
+    if (storage) {
+      storage.removeItem('pendingFormSubmission');
+      storage.removeItem('pendingFormType');
+      console.log('Stored form data cleared');
+    }
   } catch (error) {
     console.error('Failed to clear stored data:', error);
   }
@@ -281,7 +301,10 @@ export function clearStoredData(): void {
 // Check if valid data exists
 export function hasValidStoredData(): boolean {
   try {
-    const storedStr = sessionStorage.getItem('pendingFormSubmission');
+    const storage = getEffectiveStorage();
+    if (!storage) return false;
+
+    const storedStr = storage.getItem('pendingFormSubmission');
     if (!storedStr) return false;
 
     // We only check metadata here, so no decryption needed (sync)

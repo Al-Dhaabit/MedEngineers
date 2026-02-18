@@ -4,10 +4,13 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
     User,
     signInWithPopup,
+    signInWithRedirect,
     signOut as firebaseSignOut,
-    onAuthStateChanged
+    onAuthStateChanged,
+    getRedirectResult,
 } from 'firebase/auth';
 import { auth, GoogleAuthProvider } from './Firebase';
+import { isSafari } from './browserDetection';
 
 interface AuthContextType {
     user: User | null;
@@ -36,10 +39,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return () => unsubscribe();
     }, []);
 
+    // Handle redirect result on mount
+    useEffect(() => {
+        // This is vital for Safari
+        getRedirectResult(auth)
+            .then((result) => {
+                if (result) {
+                    // User successfully logged in via Safari redirect
+                    setUser(result.user);
+                }
+            })
+            .catch((error) => {
+                console.error("Redirect Result Error:", error);
+            });
+    }, []);
+
     const signInWithGoogle = async () => {
         try {
             const provider = new GoogleAuthProvider();
-            await signInWithPopup(auth, provider);
+            if (isSafari()) {
+                console.log("Safari detected: using Redirect");
+                await signInWithRedirect(auth, provider);
+            } else {
+                console.log("Non-Safari detected: using Popup");
+                await signInWithPopup(auth, provider);
+            }
         } catch (error) {
             console.error('Error signing in with Google:', error);
             throw error;
