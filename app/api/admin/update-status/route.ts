@@ -2,11 +2,14 @@ import { NextRequest, NextResponse } from 'next/server';
 import { adminDb } from "@/lib/firebaseAdmin";
 import { verifyAdminSession } from "@/lib/adminAuth";
 import admin from "firebase-admin";
+import { logger } from "@/lib/logger";
 
 export async function POST(request: NextRequest) {
+    const requestId = logger.getRequestId();
+
     try {
         // ============================================
-        // LAYER 1: Admin Authentication
+        // 1. AUTHENTICATION & AUTHORIZATION
         // ============================================
         let adminUser;
         try {
@@ -15,26 +18,27 @@ export async function POST(request: NextRequest) {
             const errorMessage = error.message || String(error);
 
             if (errorMessage.includes("FORBIDDEN")) {
-                console.log(`[Admin Auth] Forbidden: ${errorMessage}`);
+                logger.warn('Forbidden status update attempt', { requestId, error: errorMessage });
                 return NextResponse.json(
                     { error: 'Forbidden - Admin access required' },
                     { status: 403 }
                 );
             }
 
-            console.log(`[Admin Auth] Unauthorized: ${errorMessage}`);
+            logger.warn('Unauthorized status update attempt', { requestId, error: errorMessage });
             return NextResponse.json(
                 { error: 'Unauthorized - Please sign in as admin' },
                 { status: 401 }
             );
         }
 
-        console.log(`[Admin Action] User ${adminUser.email} authenticated`);
+        logger.info(`Admin ${adminUser.email} authenticated for status update`, { requestId });
 
         // ============================================
-        // LAYER 2: Input Validation
+        // 2. INPUT VALIDATION
         // ============================================
-        const { competitorId, status } = await request.json();
+        const body = await request.json();
+        const { competitorId, status } = body;
 
         if (!competitorId || !status) {
             return NextResponse.json(
@@ -43,7 +47,8 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Validate status values
+        // Validate status values (standardized to lowercase/PascalCase as needed)
+        // Note: The UI seems to send 'Accepted', 'Rejected', or 'pending'
         const validStatuses = ['Accepted', 'Rejected', 'pending'];
         if (!validStatuses.includes(status)) {
             return NextResponse.json(
@@ -53,12 +58,13 @@ export async function POST(request: NextRequest) {
         }
 
         // ============================================
-        // LAYER 3: Fetch Current Status (for audit log)
+        // 3. FETCH CURRENT STATUS & UPDATE
         // ============================================
         const competitorRef = adminDb.collection('competitors').doc(competitorId);
         const competitorDoc = await competitorRef.get();
 
         if (!competitorDoc.exists) {
+            logger.error('Competitor not found', { requestId, competitorId });
             return NextResponse.json(
                 { error: 'Competitor not found' },
                 { status: 404 }
@@ -66,33 +72,18 @@ export async function POST(request: NextRequest) {
         }
 
         const oldStatus = competitorDoc.data()?.status || 'pending';
-
-        // Skip update if status is already the same
-        if (oldStatus === status) {
-            console.log(`[Admin Action] Status already ${status} for ${competitorId}`);
-            return NextResponse.json({
-                success: true,
-                status,
-                message: 'Status unchanged (already set to this value)'
-            });
-        }
-
-        // ============================================
-        // LAYER 4: Update Status
-        // ============================================
         const now = new Date().toISOString();
 
+        // Update the document
         await competitorRef.update({
             status: status,
-            updatedAt: now,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             lastStatusChangeBy: adminUser.email,
             lastStatusChangeAt: now
         });
 
-        console.log(`[Admin Action] Status updated: ${competitorId} from ${oldStatus} to ${status}`);
-
         // ============================================
-        // LAYER 5: Audit Logging
+        // 4. AUDIT LOGGING
         // ============================================
         try {
             await adminDb.collection('admin_audit_logs').add({
@@ -106,15 +97,24 @@ export async function POST(request: NextRequest) {
                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
                 timestampISO: now,
                 metadata: {
+                    requestId,
                     userAgent: request.headers.get('user-agent') || 'unknown',
                     ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown'
                 }
             });
-            console.log(`[Audit Log] Status change logged for ${competitorId}`);
+            logger.info('Status change successfully audited', { requestId, competitorId });
         } catch (auditError) {
-            // Don't fail the request if audit logging fails, but log the error
-            console.error('[Audit Log] Failed to write audit log:', auditError);
+            // Log audit failure but don't fail the primary request
+            logger.error('Failed to write audit log', { requestId, auditError });
         }
+
+        logger.info('Competitor status updated successfully', {
+            requestId,
+            competitorId,
+            oldStatus,
+            newStatus: status,
+            admin: adminUser.email
+        });
 
         return NextResponse.json({
             success: true,
@@ -124,9 +124,9 @@ export async function POST(request: NextRequest) {
         });
 
     } catch (error) {
-        console.error('[Admin Action] Error updating status:', error);
+        logger.error('Critical failure in status update route', { requestId, error });
         return NextResponse.json(
-            { error: 'Failed to update status' },
+            { error: 'Internal server error during status update' },
             { status: 500 }
         );
     }

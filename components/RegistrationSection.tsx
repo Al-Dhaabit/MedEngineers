@@ -99,18 +99,13 @@ export function RegistrationSection() {
           }
         } else {
           // Not paid yet
-          if (isEngineer) {
-            // Engineers skip pending and go straight to payment widget (approved status)
+          // Engineering and Healthcare now both follow the same flow: Pending -> Approved -> Widget
+          if (actualStatus === "accepted") {
             setStatus("approved");
+          } else if (actualStatus === "rejected") {
+            setStatus("rejected");
           } else {
-            // Healthcare (Medicine) follows the normal flow: Pending -> Approved -> Widget
-            if (actualStatus === "accepted") {
-              setStatus("approved");
-            } else if (actualStatus === "rejected") {
-              setStatus("rejected");
-            } else {
-              setStatus("pending");
-            }
+            setStatus("pending");
           }
         }
 
@@ -232,8 +227,8 @@ export function RegistrationSection() {
               return;
             }
 
-            // For Healthcare: handle transition from pending to approved/rejected
-            if (!isEngineer && status === "pending") {
+            // Handle transition from pending to approved/rejected for all tracks
+            if (status === "pending") {
               if (actualStatus === "accepted") {
                 setStatus("approved");
                 setCurrentUser((prev: any) => prev ? { ...prev, actualStatus: "accepted" } : null);
@@ -945,7 +940,18 @@ export function RegistrationSection() {
                 <h3 className="text-white font-bold text-lg">OFFICIAL TICKET</h3>
               </div>
               <div className="p-8">
-                <TicketTailorWidget />
+                {/* <TicketTailorWidget /> */}
+                <div className="flex flex-col items-center justify-center py-12 px-4 text-center bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-800">
+                  <div className="w-16 h-16 bg-[#007b8a]/10 rounded-full flex items-center justify-center mb-4">
+                    <svg className="w-8 h-8 text-[#007b8a]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <h4 className="text-xl font-bold text-zinc-900 dark:text-white mb-2">Payment details will be shared soon</h4>
+                  <p className="text-black dark:text-black max-w-sm mx-auto text-sm">
+                    We are finalizing the payment process. You will receive an update here.
+                  </p>
+                </div>
               </div>
             </div>
 

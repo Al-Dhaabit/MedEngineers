@@ -219,6 +219,7 @@ export async function POST(req: NextRequest) {
                         submittedAt: admin.firestore.FieldValue.serverTimestamp(),
                         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                         isPaid: false,
+                        status: "pending",
                         domain: "",
                         attended: false,
                     }, { merge: true });
