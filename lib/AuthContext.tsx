@@ -4,13 +4,10 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import {
     User,
     signInWithPopup,
-    signInWithRedirect,
     signOut as firebaseSignOut,
     onAuthStateChanged,
-    getRedirectResult,
 } from 'firebase/auth';
 import { auth, GoogleAuthProvider } from './Firebase';
-import { isSafari } from './browserDetection';
 
 interface AuthContextType {
     user: User | null;
@@ -39,31 +36,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return () => unsubscribe();
     }, []);
 
-    // Handle redirect result on mount
-    useEffect(() => {
-        // This is vital for Safari
-        getRedirectResult(auth)
-            .then((result) => {
-                if (result) {
-                    // User successfully logged in via Safari redirect
-                    setUser(result.user);
-                }
-            })
-            .catch((error) => {
-                console.error("Redirect Result Error:", error);
-            });
-    }, []);
-
     const signInWithGoogle = async () => {
         try {
             const provider = new GoogleAuthProvider();
-            if (isSafari()) {
-                console.log("Safari detected: using Redirect");
-                await signInWithRedirect(auth, provider);
-            } else {
-                console.log("Non-Safari detected: using Popup");
-                await signInWithPopup(auth, provider);
-            }
+            console.log("Initiating Google Sign-In with Popup");
+            await signInWithPopup(auth, provider);
         } catch (error) {
             console.error('Error signing in with Google:', error);
             throw error;
@@ -73,6 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const signOut = async () => {
         try {
             await firebaseSignOut(auth);
+            // We'll let components handle their own reload/redirect logic if needed
         } catch (error) {
             console.error('Error signing out:', error);
             throw error;

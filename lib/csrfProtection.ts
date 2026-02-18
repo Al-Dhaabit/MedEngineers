@@ -1,7 +1,5 @@
 // CSRF protection for OAuth flow
 
-import { isSafari } from './browserDetection';
-
 interface CSRFToken {
   token: string;
   timestamp: number;
@@ -10,10 +8,11 @@ interface CSRFToken {
 const TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
 const TOKEN_LENGTH = 32;
 
-// Helper to get the correct storage based on browser
+// Helper to get the correct storage
+// We use sessionStorage for CSRF tokens to ensure they don't persist after the tab is closed
 const getEffectiveStorage = () => {
   if (typeof window === 'undefined') return null;
-  return isSafari() ? localStorage : sessionStorage;
+  return sessionStorage;
 };
 
 // Generate cryptographically secure random token

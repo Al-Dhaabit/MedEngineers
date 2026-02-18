@@ -28,11 +28,12 @@ body {
   overflow-x: hidden;
 }
 
-html {
-  overflow-x: hidden;
+/* Safari Scroll Performance Optimizations */
+html, body {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: auto; /* Safari handles smooth scroll better when not forced */
 }
 
-/* Smooth Scroll & Custom Scrollbar */
 html {
   scroll-behavior: smooth !important;
 }

@@ -2,12 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import { CustomApplicationForm } from "./CustomApplicationForm";
-import { onAuthStateChanged, signOut, signInWithPopup, signInWithRedirect, GoogleAuthProvider } from "firebase/auth";
 import { TicketTailorWidget } from "@/components/TicketTailorWidget";
 import { auth } from "@/lib/Firebase";
 import { Button } from "@/components/ui/button";
 import { retrieveFormData, hasValidStoredData, clearStoredData } from "@/lib/secureStorage";
-import { isSafari } from "@/lib/browserDetection";
+import { useAuth } from "@/lib/AuthContext";
 
 type UserStatus = "guest" | "pending" | "approved" | "rejected" | "loading" | "domain_ai" | "payment_success" | "final_phase" | "domain_selection";
 
@@ -35,8 +34,7 @@ interface SubmissionResult {
 }
 
 export function RegistrationSection() {
-  // Mock state to demonstrate the flow. In a real app, this comes from the backend.
-
+  const { user, signInWithGoogle, signOut } = useAuth();
   // Initialize with a dedicated 'loading' status to prevent Guest UI flicker
   const [status, setStatus] = useState<UserStatus>("loading");
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -156,7 +154,7 @@ export function RegistrationSection() {
     }
   };
 
-  // Auth Listener (runs once when component mounts)
+  // Auth Listener (synchronizes with AuthContext)
   useEffect(() => {
     const checkLocalCache = () => {
       if (typeof window !== 'undefined') {
@@ -170,23 +168,20 @@ export function RegistrationSection() {
     };
     checkLocalCache();
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (!user) {
-        setStatus("guest");
-        setCurrentUser(null);
-        return;
-      }
+    if (!user) {
+      setStatus("guest");
+      setCurrentUser(null);
+      return;
+    }
 
-      if (hasValidStoredData()) {
-        console.log("Pending form data detected - skipping status check, letting form submit first");
-        setCurrentUser(user);
-        return;
-      }
+    if (hasValidStoredData()) {
+      console.log("Pending form data detected - skipping status check, letting form submit first");
+      setCurrentUser(user);
+      return;
+    }
 
-      checkUserStatus(user);
-    });
-    return () => unsubscribe();
-  }, [hasCheckedStatus, paymentSuccessDismissed]);
+    checkUserStatus(user);
+  }, [user]); // Only depend on current user from AuthContext
 
   // Handle manual status check
   const handleCheckStatus = async () => {
@@ -195,15 +190,8 @@ export function RegistrationSection() {
     setHasCheckedStatus(true);
 
     try {
-      const provider = new GoogleAuthProvider();
-      if (isSafari()) {
-        console.log("Using redirect for Safari");
-        await signInWithRedirect(auth, provider);
-      } else {
-        console.log("Using popup for non-Safari");
-        await signInWithPopup(auth, provider);
-      }
-      // The onAuthStateChanged hook will handle the rest
+      await signInWithGoogle();
+      // The useEffect on `user` will handle the rest once signed in
     } catch (error: any) {
       console.error("Status check login failed", error);
       setStatusCheckMessage(error.message || "Failed to sign in");
@@ -318,9 +306,8 @@ export function RegistrationSection() {
       setCurrentUser(null);
       clearStoredData();
 
-
-      // Step B: Tell Firebase to kill the session
-      await signOut(auth);
+      // Step B: Tell AuthContext to sign out
+      await signOut();
     } catch (error) {
       console.error("Logout failed:", error);
     }
@@ -422,7 +409,7 @@ export function RegistrationSection() {
   };
 
   return (
-    <section id="registration" className="py-24 bg-white dark:bg-zinc-950">
+    <section id="registration" className="py-24 bg-white dark:bg-zinc-950 [will-change:transform]">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
 
         {/* Global User Header & Logout */}
@@ -765,8 +752,8 @@ export function RegistrationSection() {
               </p>
             </div>
 
-            {/* Status Check Result Message */}
-            {hasCheckedStatus && statusCheckMessage && (
+            {/* Status Check Result Message - Only show if logged in but no application */}
+            {currentUser && !currentUser?.hasSubmitted && hasCheckedStatus && statusCheckMessage && (
               <div className="mx-auto max-w-4xl mb-8">
                 <div className={`rounded-xl p-6 border ${statusCheckMessage.includes("No application")
                   ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
@@ -866,26 +853,6 @@ export function RegistrationSection() {
               </div>
             )}
 
-            {/* Sign Out Section - Only show if logged in but no application */}
-            {currentUser && !currentUser?.hasSubmitted && (
-              <div className="mx-auto max-w-4xl mb-8">
-                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-xl p-6 border border-blue-200 dark:border-blue-800">
-                  <div className="text-center">
-                    <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                      </svg>
-                    </div>
-                    <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-2">
-                      Ready to Apply?
-                    </h3>
-                    <p className="text-blue-700 dark:text-blue-300">
-                      We couldn't find an application for this account. Please fill out the form below to get started.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
 
             <div className="mx-auto max-w-4xl">
               {/* Custom Styled Form with built-in submit */}

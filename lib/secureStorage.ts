@@ -1,7 +1,4 @@
-// Secure session storage with integrity checks and encryption
 // Production-ready Secure Storage using Web Crypto API (AES-GCM) with Fallback
-
-import { isSafari } from "./browserDetection";
 
 interface StoredEncryptedData {
   v: string;
@@ -88,10 +85,11 @@ async function getEncryptionKey(): Promise<CryptoKey> {
   );
 }
 
-// Helper to get the correct storage based on browser
+// Helper to get the correct storage
+// We use localStorage for form drafts to ensure persistence across sessions/redirects
 const getEffectiveStorage = () => {
   if (typeof window === 'undefined') return null;
-  return isSafari() ? localStorage : sessionStorage;
+  return localStorage;
 };
 
 // Storage availability check
@@ -148,7 +146,7 @@ export async function storeFormData(payload: any, formType: string): Promise<boo
         storage.setItem('pendingFormSubmission', JSON.stringify(storedData));
         storage.setItem('pendingFormType', formType);
 
-        console.log(`Form data stored securely (V2 Encrypted) in ${isSafari() ? 'localStorage' : 'sessionStorage'}. Type:`, formType);
+        console.log("Form data stored securely (V2 Encrypted). Type:", formType);
         return true;
 
       } catch (e) {
@@ -171,7 +169,7 @@ export async function storeFormData(payload: any, formType: string): Promise<boo
 
     storage.setItem('pendingFormSubmission', JSON.stringify(storedData));
     storage.setItem('pendingFormType', formType);
-    console.log(`Form data stored with checksum (V1 Fallback) in ${isSafari() ? 'localStorage' : 'sessionStorage'}. Type:`, formType);
+    console.log("Form data stored with checksum (V1 Fallback). Type:", formType);
     return true;
 
   } catch (error) {
