@@ -439,65 +439,67 @@ export function RegistrationSection() {
           </div>
         )}
 
-        {/* DEV ONLY: State Toggles to visualize the flow */}
-        {/* <div className="mb-12 flex flex-wrap justify-center gap-4 p-4 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 w-fit mx-auto">
-          <span className="text-xs font-mono uppercase text-zinc-500 self-center">Dev Preview:</span>
-          {(["guest", "pending", "approved", "rejected"] as UserStatus[]).map((s) => (
+        {/* DEV ONLY: State Toggles to visualize the flow - Only visible in development */}
+        {process.env.NODE_ENV === "development" && (
+          <div className="mb-12 flex flex-wrap justify-center gap-4 p-4 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 w-fit mx-auto">
+            <span className="text-xs font-mono uppercase text-zinc-500 self-center">Dev Preview:</span>
+            {(["guest", "pending", "approved", "rejected"] as UserStatus[]).map((s) => (
+              <button
+                key={s}
+                onClick={() => setStatus(s)}
+                className={`px-3 py-1 rounded text-xs font-medium capitalize transition-colors ${status === s
+                  ? "bg-[#007b8a] text-white"
+                  : "bg-white dark:bg-black text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800"
+                  }`}
+              >
+                {s}
+              </button>
+            ))}
+
             <button
-              key={s}
-              onClick={() => setStatus(s)}
-              className={`px-3 py-1 rounded text-xs font-medium capitalize transition-colors ${status === s
-                ? "bg-[#007b8a] text-white"
+              onClick={() => setStatus("payment_success")}
+              className={`px-3 py-1 rounded text-xs font-medium transition-colors ${status === "payment_success"
+                ? "bg-green-600 text-white"
                 : "bg-white dark:bg-black text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800"
                 }`}
             >
-              {s}
+              Payment Success
             </button>
-          ))}
 
-          <button
-            onClick={() => setStatus("payment_success")}
-            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${status === "payment_success"
-              ? "bg-green-600 text-white"
-              : "bg-white dark:bg-black text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800"
-              }`}
-          >
-            Payment Success
-          </button>
+            <button
+              onClick={() => setStatus("final_phase")}
+              className={`px-3 py-1 rounded text-xs font-medium transition-colors ${status === "final_phase"
+                ? "bg-blue-600 text-white"
+                : "bg-white dark:bg-black text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800"
+                }`}
+            >
+              Final Phase
+            </button>
 
-          <button
-            onClick={() => setStatus("final_phase")}
-            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${status === "final_phase"
-              ? "bg-blue-600 text-white"
-              : "bg-white dark:bg-black text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800"
-              }`}
-          >
-            Final Phase
-          </button>
+            <button
+              onClick={() => setStatus("domain_selection")}
+              className={`px-3 py-1 rounded text-xs font-medium transition-colors ${status === "domain_selection"
+                ? "bg-orange-600 text-white"
+                : "bg-white dark:bg-black text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800"
+                }`}
+            >
+              Domain Selection
+            </button>
 
-          <button
-            onClick={() => setStatus("domain_selection")}
-            className={`px-3 py-1 rounded text-xs font-medium transition-colors ${status === "domain_selection"
-              ? "bg-orange-600 text-white"
-              : "bg-white dark:bg-black text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800"
-              }`}
-          >
-            Domain Selection
-          </button>
+            <div className="w-px h-6 bg-zinc-300 dark:bg-zinc-700 self-center mx-2" />
 
-          <div className="w-px h-6 bg-zinc-300 dark:bg-zinc-700 self-center mx-2" /> */}
-
-        {/* Domain AI Button */}
-        {/* <button
-            onClick={() => setStatus("domain_ai")}
-            className={`px-3 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 ${status === "domain_ai"
-              ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white"
-              : "bg-gradient-to-r from-purple-600 to-pink-600 text-white opacity-70 hover:opacity-100"
-              }`}
-          >
-            <span>🧠</span> Domain AI
-          </button>
-        </div> */}
+            {/* Domain AI Button */}
+            <button
+              onClick={() => setStatus("domain_ai")}
+              className={`px-3 py-1 rounded text-xs font-medium transition-colors flex items-center gap-1 ${status === "domain_ai"
+                ? "bg-gradient-to-r from-purple-600 to-pink-600 text-white"
+                : "bg-gradient-to-r from-purple-600 to-pink-600 text-white opacity-70 hover:opacity-100"
+                }`}
+            >
+              <span>🧠</span> Domain AI
+            </button>
+          </div>
+        )}
 
         {/* 4. DOMAIN AI VIEW: Mock Admin Dashboard */}
         {status === "domain_ai" && (
@@ -961,44 +963,126 @@ export function RegistrationSection() {
           </div>
         )}
 
-        {/* 3.5 REJECTED VIEW: Ticket Tailor Widget with Rejection Message */}
+        {/* 3.5 REJECTED VIEW: "General Attendee" Invitation — Premium Redesign */}
         {status === "rejected" && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="mx-auto max-w-2xl text-center mb-16">
-              <div className="mb-6 flex justify-center">
-                <div className="h-20 w-20 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-10 h-10 text-red-600 dark:text-red-500">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-                  </svg>
+
+
+            <div className="mx-auto max-w-3xl text-center mb-14 relative z-10">
+              {/* Refined Icon with layered glow */}
+              <div className="mb-8 flex justify-center">
+                <div className="relative">
+
+                  <div className="relative h-24 w-24 rounded-full bg-gradient-to-br from-orange-500/20 to-orange-900/30 border-2 border-orange-500/40 flex items-center justify-center backdrop-blur-sm shadow-lg shadow-orange-500/10">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-11 h-11 text-orange-500">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
+                    </svg>
+                  </div>
                 </div>
               </div>
-              <h2 className="text-4xl sm:text-6xl font-black tracking-[-0.05em] uppercase text-red-600 mb-4">
-                Application Update
+
+              {/* Title */}
+              <h2 className="text-4xl sm:text-6xl font-black tracking-[-0.05em] uppercase text-orange-500 mb-3">
+                Your Invitation
               </h2>
               <p className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-2xl">
-                We're sorry, {currentUser?.displayName || 'Applicant'}.
+                Thank you for your interest, {currentUser?.displayName?.split(' ')[0] || 'Applicant'}.
               </p>
-              <div className="mt-4 p-6 bg-red-50 dark:bg-red-900/10 border border-red-100 dark:border-red-900/30 rounded-2xl max-w-xl mx-auto">
-                <p className="text-lg font-medium text-red-800 dark:text-red-300">
-                  Your Application is Rejected
-                </p>
-                <p className="mt-2 text-sm text-red-700/80 dark:text-red-400/80 leading-relaxed">
-                  Application Rejected, but you can still get the ticket
-                </p>
+
+              {/* Status Timeline */}
+              <div className="mt-10 flex items-center justify-center gap-0 max-w-md mx-auto">
+                {/* Step 1: Application */}
+                <div className="flex flex-col items-center">
+                  <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center shadow-md shadow-orange-500/20">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                  </div>
+                  <span className="text-[11px] font-semibold text-orange-500 mt-2 uppercase tracking-wider">Applied</span>
+                </div>
+                {/* Connector */}
+                <div className="flex-1 h-[2px] bg-orange-500 mx-1 mt-[-18px]" />
+                {/* Step 2: Reviewed */}
+                <div className="flex flex-col items-center">
+                  <div className="w-10 h-10 rounded-full bg-orange-500 flex items-center justify-center shadow-md shadow-orange-500/20">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                  </div>
+                  <span className="text-[11px] font-semibold text-orange-500 mt-2 uppercase tracking-wider">Reviewed</span>
+                </div>
+                {/* Connector */}
+                <div className="flex-1 h-[2px] bg-gradient-to-r from-orange-500 to-amber-400 mx-1 mt-[-18px]" />
+                {/* Step 3: Invited */}
+                <div className="flex flex-col items-center">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-amber-400 flex items-center justify-center shadow-md shadow-amber-400/20 ring-2 ring-amber-400/30 ring-offset-2 ring-offset-zinc-950">
+                    <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" /></svg>
+                  </div>
+                  <span className="text-[11px] font-bold text-amber-400 mt-2 uppercase tracking-wider">Invited</span>
+                </div>
+              </div>
+
+              {/* Main Information Card — Glassmorphism style */}
+              <div className="mt-12 relative max-w-2xl mx-auto">
+                {/* Gradient border effect */}
+                <div className="absolute -inset-[1px] rounded-3xl bg-gradient-to-br from-orange-500/50 via-transparent to-amber-400/30 pointer-events-none" />
+                <div className="relative p-8 sm:p-10 bg-zinc-900/80 backdrop-blur-xl rounded-3xl shadow-2xl">
+                  <div className="flex items-center justify-center gap-2 mb-5">
+                    <div className="h-px flex-1 bg-gradient-to-r from-transparent to-orange-500/40" />
+                    <span className="text-xs font-bold uppercase tracking-[0.2em] text-orange-500">A Note on Your Selection</span>
+                    <div className="h-px flex-1 bg-gradient-to-l from-transparent to-orange-500/40" />
+                  </div>
+                  <div className="space-y-4 text-[15px] text-zinc-300 leading-relaxed">
+                    <p>
+                      {/* After careful review of your application, our team has curated a <span className="font-semibold text-white">General Attendance</span> invitation tailored for you. */}
+                    </p>
+                    <p className="text-zinc-400">
+                      Unfortunately, your application was not selected for the competitive track this cycle. However, you are welcome to attend the event as an audience member rather than a competitor. You can secure your General Attendance ticket below.
+                    </p>
+                  </div>
+
+                  {/* What's Included pills */}
+                  <div className="mt-8">
+                    <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-zinc-500 block mb-3">What's Included</span>
+                    <div className="flex flex-wrap justify-center gap-2">
+                      {[
+                        { icon: "🎓", label: "Workshop Access" },
+                        { icon: "🤝", label: "Networking Sessions" },
+                        { icon: "🎤", label: "Keynote Talks" },
+                        { icon: "🏥", label: "Industry Expo" },
+                        // { icon: "📜", label: "Certificate" },
+                      ].map((item) => (
+                        <span
+                          key={item.label}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium bg-white/5 border border-white/10 text-zinc-300 hover:bg-white/10 transition-colors"
+                        >
+                          <span>{item.icon}</span>
+                          {item.label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="mx-auto max-w-4xl bg-white rounded-3xl shadow-xl ring-1 ring-zinc-200 overflow-hidden">
-              <div className="bg-zinc-800 px-6 py-4 flex items-center justify-center">
-                <h3 className="text-white font-bold text-lg">GENERAL ATTENDANCE TICKET</h3>
+            {/* General Attendance Pass — Ticket Widget */}
+            <div className="mx-auto max-w-4xl mt-14 rounded-3xl overflow-hidden shadow-2xl ring-1 ring-zinc-800">
+              <div className="bg-gradient-to-r from-zinc-800 via-zinc-700 to-zinc-800 px-6 py-4 flex items-center justify-center gap-3">
+                <svg className="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                </svg>
+                <h3 className="text-white font-bold text-base tracking-wider uppercase">General Attendance Pass</h3>
               </div>
-              <div className="p-8">
+              <div className="bg-zinc-900 p-8">
                 <TicketTailorWidget />
               </div>
             </div>
 
-            <div className="mt-8 text-center text-sm text-zinc-500 max-w-md mx-auto">
-              <p>Still want to participate? Grab a general ticket above.</p>
+            {/* Footer Message */}
+            <div className="mt-10 text-center max-w-md mx-auto">
+              <p className="text-sm text-zinc-400">
+                We genuinely look forward to seeing you at MedHack. 🩺
+              </p>
+              <p className="text-xs text-zinc-600 mt-2">
+                Questions? Reach out to us at <a href="mailto:medhack@support.com" className="text-orange-500 hover:underline">medhack@support.com</a>
+              </p>
             </div>
           </div>
         )}
