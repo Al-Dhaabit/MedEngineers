@@ -1037,27 +1037,7 @@ export function RegistrationSection() {
                     </p>
                   </div>
 
-                  {/* What's Included pills */}
-                  <div className="mt-8">
-                    <span className="text-[11px] font-bold uppercase tracking-[0.15em] text-zinc-500 block mb-3">What's Included</span>
-                    <div className="flex flex-wrap justify-center gap-2">
-                      {[
-                        { icon: "🎓", label: "Workshop Access" },
-                        { icon: "🤝", label: "Networking Sessions" },
-                        { icon: "🎤", label: "Keynote Talks" },
-                        { icon: "🏥", label: "Industry Expo" },
-                        // { icon: "📜", label: "Certificate" },
-                      ].map((item) => (
-                        <span
-                          key={item.label}
-                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-medium bg-white/5 border border-white/10 text-zinc-300 hover:bg-white/10 transition-colors"
-                        >
-                          <span>{item.icon}</span>
-                          {item.label}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
+
                 </div>
               </div>
             </div>
