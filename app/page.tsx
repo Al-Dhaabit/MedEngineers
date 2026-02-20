@@ -2,7 +2,7 @@ import { Hero } from "@/components/Hero";
 import { EventDetails } from "@/components/EventDetails";
 import { RegistrationSection } from "@/components/RegistrationSection";
 import { Footer } from "@/components/Footer";
-import ImageGallery from "@/components/ImageGallery";
+// import ImageGallery from "@/components/ImageGallery";
 
 export default function Home() {
   return (
@@ -10,7 +10,7 @@ export default function Home() {
       <Hero />
       <EventDetails />
       <RegistrationSection />
-      <ImageGallery />
+      {/* <ImageGallery /> */}
       <Footer />
     </main>
   );

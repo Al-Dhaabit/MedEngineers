@@ -624,6 +624,19 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
             clearStoredData();
             clearCSRFToken();
 
+            // Start the sign-in process immediately to prevent Safari from blocking the popup.
+            // Safari requires window.open (inside signInWithPopup) to be called in the same synchronous 
+            // execution block as the click handler, without any preceding awaits.
+            const signInPromise = signInWithGoogle().catch(err => {
+                const isCancelled = err?.code === 'auth/cancelled-popup-request' || err?.code === 'auth/popup-closed-by-user';
+                if (isCancelled) {
+                    console.warn("Sign in cancelled by user.");
+                } else {
+                    console.warn("Sign in failed:", err);
+                }
+                // The form data is already cleared above, but we can reset state if needed
+            });
+
             // Store securely with integrity checks using secureStorage
             const stored = await storeFormData(submissionPayload, formType);
             if (!stored) {
@@ -635,7 +648,7 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
             const csrfToken = createCSRFToken();
 
             console.log("Form data stored securely for post-OAuth submission");
-            await signInWithGoogle();
+            await signInPromise;
             return;
         }
 

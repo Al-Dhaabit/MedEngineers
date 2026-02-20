@@ -36,14 +36,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return () => unsubscribe();
     }, []);
 
+    const [isSigningIn, setIsSigningIn] = useState(false);
+
     const signInWithGoogle = async () => {
+        if (isSigningIn) {
+            console.warn("Sign-in already in progress. Ignoring duplicate request.");
+            return;
+        }
+
         try {
+            setIsSigningIn(true);
             const provider = new GoogleAuthProvider();
             console.log("Initiating Google Sign-In with Popup");
             await signInWithPopup(auth, provider);
-        } catch (error) {
-            console.error('Error signing in with Google:', error);
+        } catch (error: any) {
+            // Suppress the red error overlay in Next.js for benign auth cancellations
+            if (error?.code === 'auth/cancelled-popup-request' || error?.code === 'auth/popup-closed-by-user') {
+                console.warn('Google Sign-In popup closed or cancelled by user.');
+            } else {
+                console.error('Error signing in with Google:', error);
+            }
             throw error;
+        } finally {
+            setIsSigningIn(false);
         }
     };
 
