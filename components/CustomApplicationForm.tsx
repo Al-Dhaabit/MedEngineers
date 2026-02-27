@@ -128,6 +128,7 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
         // Specific answers for Engineering Track
         const engineeringAnswers: Record<string, any> = {
             "Full Name": "Test Engineer",
+            "Your University": "Khalifa University",
             "University Email": "test.engineer@university.edu",
             "Phone Number": "+971501234567",
             "Nationality": "United Arab Emirates",
@@ -1499,43 +1500,45 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                     </div>
 
                     {/* Quick Test Actions - Visible in both Dev and Prod - COMMENTED FOR PRODUCTION*/}
-                    {/* <div className="shrink-0 flex gap-2 self-start">
-                        <div className="flex flex-col gap-2">
-                            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-center">Quick Fill</span>
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => fillTestData("Engineering")}
-                                    title="Fill with Engineering data"
-                                    className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-800 transition-all flex items-center justify-center"
-                                >
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a2 2 0 00-1.96 1.414l-.503 1.508c-.206.62-.777 1.055-1.43 1.055H9c-.653 0-1.224-.435-1.43-1.055l-.503-1.508a2 2 0 00-1.96-1.414l-2.387.477a2 2 0 00-1.022.547l-.95 1.9a1 1 0 001.218 1.348l1.792-.448a2 2 0 001.022.547l2.387.477a2 2 0 001.96-1.414l.503-1.508c.206-.62.777-1.055 1.43-1.055H15c.653 0 1.224.435 1.43 1.055l.503 1.508a2 2 0 001.96 1.414l2.387-.477a2 2 0 00-1.022-.547l.95-1.9a1 1 0 00-1.218-1.348l-1.792.448z" />
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 3L4.5 15.5h11L10 3z" />
-                                    </svg>
-                                    <span className="ml-1.5 text-xs font-bold uppercase">ENG</span>
-                                </button>
-                                <button
-                                    onClick={() => fillTestData("Healthcare")}
-                                    title="Fill with Healthcare data"
-                                    className="p-2 rounded-lg bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/50 border border-rose-200 dark:border-rose-800 transition-all flex items-center justify-center"
-                                >
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-                                    </svg>
-                                    <span className="ml-1.5 text-xs font-bold uppercase">MED</span>
-                                </button>
-                                <button
-                                    onClick={() => { setResponses({}); setSelectedMajor(null); setValidationErrors({}); }}
-                                    title="Clear all responses"
-                                    className="p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700 transition-all flex items-center justify-center"
-                                >
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                    </svg>
-                                </button>
+                    {process.env.NODE_ENV === "development" && (
+                        <div className="shrink-0 flex gap-2 self-start">
+                            <div className="flex flex-col gap-2">
+                                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest text-center">Quick Fill</span>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => fillTestData("Engineering")}
+                                        title="Fill with Engineering data"
+                                        className="p-2 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 border border-indigo-200 dark:border-indigo-800 transition-all flex items-center justify-center"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a2 2 0 00-1.96 1.414l-.503 1.508c-.206.62-.777 1.055-1.43 1.055H9c-.653 0-1.224-.435-1.43-1.055l-.503-1.508a2 2 0 00-1.96-1.414l-2.387.477a2 2 0 00-1.022.547l-.95 1.9a1 1 0 001.218 1.348l1.792-.448a2 2 0 001.022.547l2.387.477a2 2 0 001.96-1.414l.503-1.508c.206-.62.777-1.055 1.43-1.055H15c.653 0 1.224.435 1.43 1.055l.503 1.508a2 2 0 001.96 1.414l2.387-.477a2 2 0 00-1.022-.547l.95-1.9a1 1 0 00-1.218-1.348l-1.792.448z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 3L4.5 15.5h11L10 3z" />
+                                        </svg>
+                                        <span className="ml-1.5 text-xs font-bold uppercase">ENG</span>
+                                    </button>
+                                    <button
+                                        onClick={() => fillTestData("Healthcare")}
+                                        title="Fill with Healthcare data"
+                                        className="p-2 rounded-lg bg-rose-50 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/50 border border-rose-200 dark:border-rose-800 transition-all flex items-center justify-center"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                                        </svg>
+                                        <span className="ml-1.5 text-xs font-bold uppercase">MED</span>
+                                    </button>
+                                    <button
+                                        onClick={() => { setResponses({}); setSelectedMajor(null); setValidationErrors({}); }}
+                                        title="Clear all responses"
+                                        className="p-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-700 transition-all flex items-center justify-center"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </div> */}
+                    )}
 
 
                     {/* Type Toggle - Segmented Control */}

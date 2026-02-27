@@ -197,6 +197,7 @@ export async function POST(req: NextRequest) {
                     // Store the form submission to Firebase collection competitor (Engineering)
                     await adminDb.collection("competitors").doc(uid).set({
                         fullName: responses["1706880442"] || "",
+                        university: responses["805706027"] || "",
                         universityEmail: responses["464604082"] || "",
                         email: decodedToken.email,
                         contactNo: responses["1329997643"] || "",
@@ -229,6 +230,7 @@ export async function POST(req: NextRequest) {
                     // Store the form submission to Firebase collection competitor (Medicine/Healthcare)
                     await adminDb.collection("competitors").doc(uid).set({
                         fullName: responses["1706880442"] || "",
+                        university: responses["805706027"] || "",
                         universityEmail: responses["464604082"] || "",
                         email: decodedToken.email,
                         contactNo: responses["1329997643"] || "",

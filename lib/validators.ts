@@ -104,6 +104,15 @@ export function validateCompetitorForm(data: any) {
     errors.push("Please select a valid major category");
   }
 
+  // University validation for competitors
+  if (!data.university || typeof data.university !== 'string') {
+    errors.push("University name is required");
+  } else if (data.university.length < 2) {
+    errors.push("University name must be at least 2 characters");
+  } else if (data.university.length > 100) {
+    errors.push("University name must be less than 100 characters");
+  }
+
   // CHECK FOR ENGINEERING COMPETITORS
   if (data.major === "Engineering") {
 
@@ -356,6 +365,7 @@ export function validateFormSubmission(data: unknown, type: "attendee" | "compet
         contactNo: request.responses["1329997643"] || "",
         nationality: request.responses["492691881"] || "",
         emiratesID: request.responses["1368274746"] || "",
+        university: request.responses["805706027"] || "",
         major: request.responses["563534208"] || "",
         majorType: request.responses["1945900292"] || request.responses["1921732712"] || "",
         year: request.responses["257116715"] || request.responses["2106989264"] || "",
@@ -375,6 +385,7 @@ export function validateFormSubmission(data: unknown, type: "attendee" | "compet
         contactNo: request.responses["1329997643"],
         nationality: request.responses["492691881"],
         emiratesID: request.responses["1368274746"],
+        university: request.responses["805706027"],
         major: request.responses["563534208"],
         majorType: request.responses["1921732712"] || request.responses["1945900292"], // Updated ID logic
         year: request.responses["2106989264"] || request.responses["257116715"], // Check both IDs

@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "MedHack 2026 - Apply Now",
+  title: "MedEngineers 2026 - Apply Now",
   description: "Join the brightest minds in medicine and engineering for a 48-hour hackathon.",
   icons: {
     icon: "/logos/medengineers_logo.svg",

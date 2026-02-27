@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { retrieveFormData, hasValidStoredData, clearStoredData } from "@/lib/secureStorage";
 import { useAuth } from "@/lib/AuthContext";
 
-type UserStatus = "guest" | "pending" | "approved" | "rejected" | "loading" | "domain_ai" | "payment_success" | "final_phase" | "domain_selection";
+type UserStatus = "guest" | "pending" | "approved" | "pending_payment" | "rejected" | "loading" | "domain_ai" | "payment_success" | "final_phase" | "domain_selection";
 
 // Domain recommendation types
 interface DomainScore {
@@ -102,6 +102,8 @@ export function RegistrationSection() {
           // Engineering and Healthcare now both follow the same flow: Pending -> Approved -> Widget
           if (actualStatus === "accepted") {
             setStatus("approved");
+          } else if (actualStatus === "pending_payment") {
+            setStatus("pending_payment");
           } else if (actualStatus === "rejected") {
             setStatus("rejected");
           } else {
@@ -443,7 +445,7 @@ export function RegistrationSection() {
         {process.env.NODE_ENV === "development" && (
           <div className="mb-12 flex flex-wrap justify-center gap-4 p-4 rounded-lg bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 w-fit mx-auto">
             <span className="text-xs font-mono uppercase text-zinc-500 self-center">Dev Preview:</span>
-            {(["guest", "pending", "approved", "rejected"] as UserStatus[]).map((s) => (
+            {(["guest", "pending", "approved", "pending_payment", "rejected"] as UserStatus[]).map((s) => (
               <button
                 key={s}
                 onClick={() => setStatus(s)}
@@ -452,7 +454,7 @@ export function RegistrationSection() {
                   : "bg-white dark:bg-black text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-800"
                   }`}
               >
-                {s}
+                {s.replace("_", " ")}
               </button>
             ))}
 
@@ -742,7 +744,7 @@ export function RegistrationSection() {
                 Registration
               </h2>
               <p className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-2xl">
-                Apply for MedHack 2026
+                Apply for MedEngineers 2026
               </p>
               <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-400">
                 Fill out the form below and submit your application to join the next generation of medical engineers.
@@ -906,60 +908,143 @@ export function RegistrationSection() {
           </div>
         )}
 
-        {/* 3. APPROVED VIEW: Ticket Tailor Widget */}
+        {/* 3. APPROVED VIEW: Bank Transfer & Google Form (Premium Dark) */}
         {status === "approved" && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="mx-auto max-w-2xl text-center mb-16">
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 bg-black min-h-screen pt-12">
+            <div className="mx-auto max-w-3xl text-center mb-16">
               <div className="mb-6 flex justify-center">
-                <div className="h-20 w-20 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-10 h-10 text-green-600 dark:text-green-500">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                <div className="h-20 w-20 rounded-full bg-[#002f35]/50 border border-[#007b8a]/30 flex items-center justify-center shadow-[0_0_30px_rgba(0,123,138,0.2)]">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-10 h-10 text-[#00a8bd]">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
                   </svg>
                 </div>
               </div>
-              <h2 className="text-4xl sm:text-6xl font-black tracking-[-0.05em] uppercase text-[#007b8a] mb-4">
-                You're In!
+              <h2 className="text-4xl sm:text-6xl font-black tracking-[-0.05em] uppercase text-[#00a8bd] mb-6 drop-shadow-[0_0_15px_rgba(0,168,189,0.3)]">
+                YOU'RE APPROVED!
               </h2>
-              <p className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-2xl">
+              <p className="text-xl font-bold tracking-tight text-white sm:text-2xl mb-4">
                 Congratulations, {currentUser?.displayName || 'Applicant'}!
               </p>
-              <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-400">
-                Your application has been approved. Secure your ticket below to confirm your spot.
+              <p className="text-base text-zinc-400 max-w-xl mx-auto leading-relaxed">
+                Next step: Please complete the payment to secure your spot. Make a bank transfer using the details below and submit your transaction ID.
               </p>
-
-              {/* Application summary */}
-              {currentUser && (
-                <div className="mt-6 p-4 rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 inline-block text-left text-sm">
-                  <p className="text-green-800 dark:text-green-200">
-                    <strong>Application Type:</strong> {currentUser.submissionType === 'attendee' ? 'Attendee' : 'Competitor'}
-                  </p>
-                </div>
-              )}
             </div>
 
-            <div className="mx-auto max-w-4xl bg-white rounded-3xl shadow-xl ring-1 ring-zinc-200 overflow-hidden">
-              <div className="bg-[#007b8a] px-6 py-4 flex items-center justify-center">
-                <h3 className="text-white font-bold text-lg">OFFICIAL TICKET</h3>
-              </div>
-              <div className="p-8">
-                {/* <TicketTailorWidget /> */}
-                <div className="flex flex-col items-center justify-center py-12 px-4 text-center bg-zinc-50 dark:bg-zinc-900/50 rounded-2xl border border-dashed border-zinc-300 dark:border-zinc-800">
-                  <div className="w-16 h-16 bg-[#007b8a]/10 rounded-full flex items-center justify-center mb-4">
-                    <svg className="w-8 h-8 text-[#007b8a]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
+            <div className="mx-auto max-w-4xl space-y-10 px-4 pb-24">
+              {/* Bank Account Details */}
+              <div className="bg-[#18181b] rounded-2xl shadow-2xl border border-zinc-800/80 overflow-hidden">
+                <div className="bg-[#007b8a] px-6 py-5 flex items-center justify-center border-b border-[#005a65]">
+                  <h3 className="text-white font-bold text-lg tracking-wide">BANK ACCOUNT DETAILS</h3>
+                </div>
+                <div className="p-8 sm:p-12 relative">
+                  {/* Subtle inner glow */}
+                  <div className="absolute inset-0 bg-gradient-to-b from-[#007b8a]/5 to-transparent pointer-events-none" />
+
+                  <div className="max-w-2xl mx-auto border border-zinc-800/80 rounded-xl overflow-hidden bg-[#1f1f22] relative z-10 shadow-inner">
+                    <table className="w-full text-left">
+                      <tbody className="divide-y divide-zinc-800/80 text-[15px]">
+                        <tr className="hover:bg-zinc-800/30 transition-colors">
+                          <td className="px-6 py-5 font-bold text-zinc-200 w-1/3">Account Name</td>
+                          <td className="px-6 py-5 text-zinc-400 font-medium">RIT Dubai FZE</td>
+                        </tr>
+                        <tr className="hover:bg-zinc-800/30 transition-colors">
+                          <td className="px-6 py-5 font-bold text-zinc-200">Bank Name</td>
+                          <td className="px-6 py-5 text-zinc-400">Emirates NBD PJSC</td>
+                        </tr>
+                        <tr className="hover:bg-zinc-800/30 transition-colors">
+                          <td className="px-6 py-5 font-bold text-zinc-200">Branch</td>
+                          <td className="px-6 py-5 text-zinc-400">Dubai Silicon Oasis</td>
+                        </tr>
+                        <tr className="hover:bg-zinc-800/30 transition-colors">
+                          <td className="px-6 py-5 font-bold text-zinc-200">Account Number</td>
+                          <td className="px-6 py-5 text-zinc-400 font-mono tracking-wider">1102425560201</td>
+                        </tr>
+                        <tr className="hover:bg-zinc-800/30 transition-colors">
+                          <td className="px-6 py-5 font-bold text-zinc-200">SWIFT Code</td>
+                          <td className="px-6 py-5 text-zinc-400 font-mono tracking-wider">EBILAEAD</td>
+                        </tr>
+                        <tr className="hover:bg-zinc-800/30 transition-colors">
+                          <td className="px-6 py-5 font-bold text-zinc-200">IBAN Code</td>
+                          <td className="px-6 py-5 text-zinc-400 font-mono tracking-wider">AE390260001102425560201</td>
+                        </tr>
+                      </tbody>
+                    </table>
                   </div>
-                  <h4 className="text-xl font-bold text-zinc-900 dark:text-white mb-2">Payment details will be shared soon</h4>
-                  <p className="text-black dark:text-black max-w-sm mx-auto text-sm">
-                    We are finalizing the payment process. You will receive an update here.
-                  </p>
+                </div>
+              </div>
+
+              {/* Google Form Submission Placeholder */}
+              <div className="bg-[#18181b] rounded-2xl shadow-2xl border border-zinc-800/80 overflow-hidden">
+                <div className="bg-black px-6 py-5 flex items-center justify-center border-b border-zinc-900">
+                  <h3 className="text-white font-bold text-lg tracking-wide uppercase">SUBMIT PAYMENT PROOF</h3>
+                </div>
+                <div className="p-6 sm:p-10">
+                  <div className="bg-[#1f1f22] rounded-xl border border-dashed border-zinc-700/60 py-20 px-6 flex flex-col items-center justify-center text-center text-zinc-400 hover:border-[#007b8a]/50 transition-colors group">
+                    <div className="w-16 h-16 rounded-full bg-zinc-800/50 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300">
+                      <svg className="w-8 h-8 text-[#007b8a]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                      </svg>
+                    </div>
+                    <h4 className="text-xl font-bold text-zinc-200 mb-3 group-hover:text-[#00a8bd] transition-colors">Google Form Placeholder</h4>
+                    <p className="max-w-md text-sm text-zinc-500 leading-relaxed">
+                      A Google Form will go here where participants can enter their name, transaction ID, and upload their bank transfer invoice/proof.
+                    </p>
+
+                    {/* Add Button Option Strategy discussed */}
+                    <button className="mt-8 px-8 py-3 bg-[#007b8a] hover:bg-[#00a8bd] text-white font-bold rounded-lg shadow-lg shadow-[#007b8a]/20 transition-all hover:-translate-y-0.5">
+                      Upload Payment Proof
+                    </button>
+
+                    <p className="mt-4 text-xs text-zinc-600">Opens in new tab</p>
+                  </div>
                 </div>
               </div>
             </div>
+          </div>
+        )}
 
-            <div className="mt-8 text-center text-sm text-zinc-500 max-w-md mx-auto">
-              <p>Having trouble with the widget? <a href="https://www.tickettailor.com/events/medhack/1154817" target="_blank" rel="noopener noreferrer" className="text-[#007b8a] hover:underline">Click here to open booking page directly</a></p>
+        {/* 3.2 PENDING PAYMENT VIEW: Payment Review Status (Premium Dark) */}
+        {status === "pending_payment" && (
+          <div className="mx-auto max-w-2xl text-center py-20 animate-in zoom-in-95 duration-500 bg-black min-h-screen pt-24 px-4">
+            <div className="mb-8 flex justify-center relative">
+              <div className="absolute inset-0 bg-[#007b8a]/20 blur-2xl rounded-full w-32 h-32 mx-auto animate-pulse" />
+              <div className="h-24 w-24 rounded-full bg-[#002f35]/80 border border-[#007b8a]/40 shadow-[0_0_40px_rgba(0,123,138,0.25)] flex items-center justify-center relative z-10 backdrop-blur-md">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-12 h-12 text-[#00a8bd]">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 2v20m-5-10h10M4.293 4.293l15.414 15.414" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m-6-8h6" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                </svg>
+              </div>
             </div>
+            <h2 className="text-4xl sm:text-5xl font-black tracking-[-0.05em] uppercase text-[#00a8bd] mb-6 drop-shadow-[0_0_15px_rgba(0,168,189,0.3)]">
+              PAYMENT UNDER REVIEW
+            </h2>
+            <p className="text-xl font-bold tracking-tight text-white mb-4">
+              Hang tight, {currentUser?.displayName || 'Applicant'}!
+            </p>
+            <p className="text-base text-zinc-400 max-w-lg mx-auto leading-relaxed">
+              We have received your payment submission. Our organizers are currently verifying the transaction. You will receive an update once it is confirmed.
+            </p>
+
+            {/* Application summary */}
+            {currentUser && (
+              <div className="mt-12 space-y-4 relative">
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#007b8a]/5 to-transparent pointer-events-none" />
+                <div className="p-6 rounded-2xl bg-[#18181b] border border-zinc-800/80 shadow-2xl inline-block text-left text-sm text-zinc-400 min-w-[300px] relative z-10">
+                  <div className="flex border-b border-zinc-800/80 pb-3 mb-3">
+                    <span className="font-bold text-zinc-300 w-24">Applicant:</span>
+                    <span className="text-zinc-500">{currentUser.displayName || currentUser.email}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <span className="font-bold text-zinc-300 w-24">Status:</span>
+                    <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#002f35]/50 border border-[#007b8a]/30 text-[#00a8bd] font-semibold text-xs tracking-wider uppercase">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#00a8bd] animate-pulse" />
+                      Pending Approval
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
