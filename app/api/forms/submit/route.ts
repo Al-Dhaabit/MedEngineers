@@ -24,7 +24,19 @@ export async function POST(req: NextRequest) {
     try {
         logger.info('Form submission attempt', { requestId });
 
-        const body = await req.json();
+        let body: any;
+        try {
+            body = await req.json();
+        } catch {
+            logger.warn('Invalid JSON payload', { requestId });
+            return NextResponse.json(
+                {
+                    error: "Invalid request body. Please refresh and try again.",
+                    code: "INVALID_JSON"
+                },
+                { status: 400 }
+            );
+        }
         const { responses, type = "competitor", idToken } = body;
         formType = type;
 
@@ -35,7 +47,7 @@ export async function POST(req: NextRequest) {
         }
 
         try {
-            console.log("Beginning submission to firebase and sheets ID Token: ", idToken);
+            console.log("Beginning submission to firebase and sheets ID Token: ");
             // Verify token and check for revocation (true) 
             // If the user's account is disabled or their password is changed, the token will be revoked
             decodedToken = await adminAuth.verifyIdToken(idToken, true);
@@ -79,7 +91,7 @@ export async function POST(req: NextRequest) {
             logValidationError(validation.details || [], decodedToken.email);
             return NextResponse.json(
                 {
-                    error: validation.details?.join(', ') || "Invalid form data. Please check your input and try again.",
+                    error: validation.details?.join(', ') || validation.error || "Invalid form data. Please check your input and try again.",
                     code: validation.code,
                     details: validation.details
                 },

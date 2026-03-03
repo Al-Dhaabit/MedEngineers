@@ -1,13 +1,19 @@
 // Simple validation schemas without Zod for production compatibility
 
-import { error } from "console";
-
 export interface ValidationResult {
   success: boolean;
   error?: string;
   details?: string[];
   code?: string;
   data?: any;
+}
+
+function hasNonEmptyText(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function countWords(value: string): number {
+  return value.trim().split(/\s+/).filter(Boolean).length;
 }
 
 // BASE FORM VALIDATION (FOR BOTH ATTENDEES AND COMPETITORS)
@@ -47,6 +53,8 @@ export function validateBaseForm(data: any) {
     errors.push("Nationality must be at least 2 characters");
   } else if (data.nationality.length > 50) {
     errors.push("Nationality must be less than 50 characters");
+  } else if (!/^[a-zA-Z\s'-]+$/.test(data.nationality)) {
+    errors.push("Nationality can only contain letters, spaces, hyphens, and apostrophes");
   }
 
   // Emirates ID / Passport validation
@@ -111,6 +119,8 @@ export function validateCompetitorForm(data: any) {
     errors.push("University name must be at least 2 characters");
   } else if (data.university.length > 100) {
     errors.push("University name must be less than 100 characters");
+  } else if (!/^[a-zA-Z\s'-]+$/.test(data.university)) {
+    errors.push("University name can only contain letters, spaces, hyphens, and apostrophes");
   }
 
   // CHECK FOR ENGINEERING COMPETITORS
@@ -123,11 +133,15 @@ export function validateCompetitorForm(data: any) {
       errors.push("Major type must be at least 2 characters");
     } else if (data.majorType.length > 100) {
       errors.push("Major type must be less than 100 characters");
+    } else if (!/^[a-zA-Z\s'-]+$/.test(data.majorType)) {
+      errors.push("Major title can only contain letters, spaces, hyphens, and apostrophes");
     }
 
     // Year validation
     const validYears = ["1st Year", "2nd Year", "3rd Year", "4th Year", "Graduate"];
-    if (data.year && !validYears.includes(data.year)) {
+    if (!hasNonEmptyText(data.year)) {
+      errors.push("Year of study is required.");
+    } else if (!validYears.includes(data.year)) {
       errors.push("Invalid year selection for Engineering");
     }
 
@@ -195,31 +209,34 @@ export function validateCompetitorForm(data: any) {
       "The Coder: I am happiest when I am training a model, debugging a script, or designing a UI.",
     ];
 
-    if (data.workStyle && data.workStyle !== '') {
-      if (data.major === "Engineering") {
-        if (!workStyleOptions.includes(data.workStyle)) {
-          errors.push("Invalid work style selection");
-        }
+    if (!hasNonEmptyText(data.workStyle)) {
+      errors.push("Work style persona is required.");
+    } else if (data.major === "Engineering" && !workStyleOptions.includes(data.workStyle)) {
+      errors.push("Invalid work style selection");
+    }
+
+    // Engineering text field validations (word-based limits)
+    if (hasNonEmptyText(data.projects)) {
+      const projectWordCount = countWords(data.projects);
+      if (projectWordCount > 100) {
+        errors.push(`Projects description is too long (${projectWordCount} words). Please keep it to 100 words or fewer.`);
       }
     }
 
-    // Text field validations, changed max characters from 2000 to 100 as mentioned in form
-    if (data.projects && typeof data.projects === 'string' && data.projects.length > 100) {
-      errors.push("Projects description must be less than 100 characters");
-    }
-
-    if (data.experience && typeof data.experience === 'string' && data.experience.length > 1000) {
-      errors.push("Experience description must be less than 1000 characters");
-    }
-
-    if (data.challengeAnswer && typeof data.challengeAnswer === 'string') {
-      if (data.challengeAnswer.length < 10) {
-        errors.push("Challenge answer must be at least 10 characters");
-      } else if (data.challengeAnswer.length > 1000) {
-        errors.push("Challenge answer must be less than 1000 characters");
+    if (hasNonEmptyText(data.experience)) {
+      const experienceWordCount = countWords(data.experience);
+      if (experienceWordCount > 200) {
+        errors.push(`Experience description is too long (${experienceWordCount} words). Please keep it to 200 words or fewer.`);
       }
-    } else if (!data.challengeAnswer) {
-      errors.push("Challenge answer is required");
+    }
+
+    if (hasNonEmptyText(data.challengeAnswer)) {
+      const challengeWordCount = countWords(data.challengeAnswer);
+      if (challengeWordCount > 500) {
+        errors.push(`Challenge answer is too long (${challengeWordCount} words). Please keep it to 500 words or fewer.`);
+      }
+    } else {
+      errors.push("Challenge answer is required and cannot be empty.");
     }
   } else if (data.major === "Medicine" || data.major === "Healthcare") {
 
@@ -230,11 +247,15 @@ export function validateCompetitorForm(data: any) {
       errors.push("Major type must be at least 2 characters");
     } else if (data.majorType.length > 100) {
       errors.push("Major type must be less than 100 characters");
+    } else if (!/^[a-zA-Z\s'-]+$/.test(data.majorType)) {
+      errors.push("Major title can only contain letters, spaces, hyphens, and apostrophes");
     }
 
     // Year validation
     const validYears = ["Year 1", "Year 2", "Year 3", "Year 4", "Year 5", "Year 6", "Year 6+"];
-    if (data.year && !validYears.includes(data.year)) {
+    if (!hasNonEmptyText(data.year)) {
+      errors.push("Year of study is required.");
+    } else if (!validYears.includes(data.year)) {
       errors.push("Invalid year selection for Medicine/Healthcare");
     }
 
@@ -245,58 +266,81 @@ export function validateCompetitorForm(data: any) {
       `System Mapping: I understand how hospital departments and workflows actually interact.`
     ]
 
-    if (data.skillSet && data.skillSet !== '') {
-      // Apply to both Medicine and Healthcare
-      if (data.major === "Medicine" || data.major === "Healthcare") {
-        if (!skillSet.includes(data.skillSet)) {
-          errors.push("Invalid skillset selection");
-        }
-      }
+    if (!hasNonEmptyText(data.skillSet)) {
+      errors.push("Please select your strongest asset/skillset.");
+    } else if (!skillSet.includes(data.skillSet)) {
+      errors.push("Invalid skillset selection");
     }
 
     // URL validations (EXPERIENCE & PORTFOLIO)
     // LinkedIn validation
-    if (!data.linkedIn && data.linkedIn !== '') {
+    if (hasNonEmptyText(data.linkedIn)) {
       try {
         new URL(data.linkedIn);
       } catch {
-        // errors.push("Invalid LinkedIn URL"); // Relaxed URL check
+        errors.push("LinkedIn URL is invalid. Please provide a full link (including https://).");
       }
     }
 
     // Resume validation
-    if (!data.resume && data.resume !== '') {
+    if (hasNonEmptyText(data.resume)) {
       try {
         new URL(data.resume);
       } catch {
-        errors.push("Invalid Resume URL");
+        errors.push("Resume URL is invalid. Please provide a full link (including https://).");
       }
     }
 
     // Portfolio validation
-    if (!data.googleDrive && data.googleDrive !== '') {
-      errors.push("Portfolio/Personal Projects is required");
+    if (!hasNonEmptyText(data.googleDrive)) {
+      errors.push("Portfolio/Personal Projects link is required.");
+    } else {
+      try {
+        new URL(data.googleDrive);
+      } catch {
+        errors.push("Portfolio/Personal Projects URL is invalid. Please provide a full link (including https://).");
+      }
     }
 
     // SMARTNESS TEST 
     // challenge1
-    if (!data.challenge1 && data.challenge1 !== "") {
-      errors.push("Challenge 1 is required");
+    if (!hasNonEmptyText(data.challenge1)) {
+      errors.push("Challenge 1 response is required and cannot be empty.");
+    } else {
+      const challenge1WordCount = countWords(data.challenge1);
+      if (challenge1WordCount > 200) {
+        errors.push(`Clinical efficiency response is too long (${challenge1WordCount} words). Please keep it to 200 words or fewer.`);
+      }
     }
 
     // challenge2
-    if (!data.challenge2 && data.challenge2 !== "") {
-      errors.push("Challenge 2 is required");
+    if (!hasNonEmptyText(data.challenge2)) {
+      errors.push("Challenge 2 response is required and cannot be empty.");
+    } else {
+      const challenge2WordCount = countWords(data.challenge2);
+      if (challenge2WordCount > 200) {
+        errors.push(`Data paradox response is too long (${challenge2WordCount} words). Please keep it to 200 words or fewer.`);
+      }
     }
 
     // enthusiasmCheck validation
-    if (!data.enthusiasmCheck && data.enthusiasmCheck !== "") {
-      errors.push("Enthusiasm check is required");
+    if (!hasNonEmptyText(data.enthusiasmCheck)) {
+      errors.push("Enthusiasm check response is required and cannot be empty.");
+    } else {
+      const enthusiasmWordCount = countWords(data.enthusiasmCheck);
+      if (enthusiasmWordCount > 100) {
+        errors.push(`Enthusiasm response is too long (${enthusiasmWordCount} words). Please keep it to 100 words or fewer.`);
+      }
     }
 
     // collaborativeSpirit validation
-    if (!data.collaborativeSpirit && data.collaborativeSpirit !== "") {
-      errors.push("Collaborative spirit check is required");
+    if (!hasNonEmptyText(data.collaborativeSpirit)) {
+      errors.push("Collaborative spirit response is required and cannot be empty.");
+    } else {
+      const collaborativeWordCount = countWords(data.collaborativeSpirit);
+      if (collaborativeWordCount > 100) {
+        errors.push(`Collaborative spirit response is too long (${collaborativeWordCount} words). Please keep it to 100 words or fewer.`);
+      }
     }
 
     // END OF VALIDATIONS

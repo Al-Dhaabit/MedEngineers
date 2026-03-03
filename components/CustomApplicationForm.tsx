@@ -274,25 +274,52 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
         return !isNaN(num);
     };
 
+    const countWords = (value: string) => value.trim().split(/\s+/).filter(Boolean).length;
+
+    const isQuestionRequiredForCurrentForm = (question: FormQuestion, currentFormType: string) => {
+        // Competitor flow: all visible questions are required except Technical Toolkit groups LinkedIn URL.
+        if (currentFormType === "competitor") {
+            const label = question.label.toLowerCase().trim();
+            const isToolkitGroup =
+                label.startsWith("group 1:") ||
+                label.startsWith("group 2:") ||
+                label.startsWith("group 3:") ||
+                label.startsWith("group 4:");
+            const isLinkedInField = label.includes("linkedin");
+
+            if (isToolkitGroup || isLinkedInField) return false;
+            return true;
+        }
+        return question.required;
+    };
+
     const validateQuestion = (question: FormQuestion, value: unknown, currentFormType: string): string | null => {
         // For competitor form: ALL visible questions are generally required, BUT we respect explicit false.
         // For attendee form: respect the Google Form's required settings
 
-        let isRequired = question.required;
+        const isRequired = isQuestionRequiredForCurrentForm(question, currentFormType);
 
-        if (currentFormType === "competitor") {
-            // Default to true for competitors, UNLESS explicitly set to false (e.g. Toolkit questions)
-            // Medicine/Healthcare questions are technically required if visible, which validateQuestion doesn't know about visibility
-            if (question.required !== false) {
-                isRequired = true;
-            }
-        }
+        const cleanLabel = question.label
+            .replace(/\s*\(optional\)\s*/gi, "")
+            .replace(/\s+/g, " ")
+            .trim();
 
         // 1. Required check
         if (isRequired) {
-            if (value === undefined || value === "" || value === null) return "This field is required";
-            if (Array.isArray(value) && value.length === 0) return "This field is required";
-            if (typeof value === 'object' && Object.keys(value as object).length === 0) return "This field is required";
+            if (value === undefined || value === "" || value === null) return `${cleanLabel} is required`;
+            if (Array.isArray(value) && value.length === 0) return `${cleanLabel} is required`;
+            if (typeof value === 'object' && Object.keys(value as object).length === 0) return `${cleanLabel} is required`;
+        }
+
+        // Validate select/radio values against available options when applicable
+        if ((question.type === "radio" || question.type === "dropdown") && typeof value === "string" && question.options?.length) {
+            const optionsWithoutOther = question.options.filter(opt => opt !== "__OTHER__");
+            const hasOtherOption = question.options.includes("__OTHER__");
+            const isKnownOption = optionsWithoutOther.includes(value);
+            const isOtherText = hasOtherOption && value.trim() !== "" && !isKnownOption;
+            if (!isKnownOption && !isOtherText) {
+                return `Please select a valid option for ${cleanLabel}`;
+            }
         }
 
         // Return early if empty and not required (optional fields)
@@ -316,7 +343,40 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
             }
         }
 
-        // 3. Emirates ID / Passport ID Validation
+        // 3. Nationality validation
+        if (labelLower.includes("nationality")) {
+            const nationalityPattern = /^[a-zA-Z\s'-]+$/;
+            if (!nationalityPattern.test(valString)) {
+                return "Nationality can only contain letters, spaces, hyphens, and apostrophes";
+            }
+            if (valString.length < 2) {
+                return "Nationality must be at least 2 characters";
+            }
+        }
+
+        // 4. University validation
+        if (labelLower.includes("university") && !labelLower.includes("email")) {
+            const universityPattern = /^[a-zA-Z\s'-]+$/;
+            if (!universityPattern.test(valString)) {
+                return "University name can only contain letters, spaces, hyphens, and apostrophes";
+            }
+            if (valString.length < 2) {
+                return "University name must be at least 2 characters";
+            }
+        }
+
+        // 5. "What is your major?" (major title) validation
+        if (labelLower.includes("what is your major?")) {
+            const majorPattern = /^[a-zA-Z\s'-]+$/;
+            if (!majorPattern.test(valString)) {
+                return "Major title can only contain letters, spaces, hyphens, and apostrophes";
+            }
+            if (valString.length < 2) {
+                return "Major title must be at least 2 characters";
+            }
+        }
+
+        // 6. Emirates ID / Passport ID Validation
         // if (labelLower.includes("emirates id")) {
         //     const digitsOnly = valString.replace(/\D/g, "");
         //     if (digitsOnly.length !== 15) {
@@ -324,7 +384,7 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
         //     }
         // }
 
-        // 4. Phone Number Validation (allows +, -, spaces, and numbers)
+        // 7. Phone Number Validation (allows +, -, spaces, and numbers)
         if (
             labelLower.includes("phone") ||
             labelLower.includes("whatsapp") ||
@@ -337,12 +397,27 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
             }
         }
 
-        // 5. Email Validation
+        // 8. Email Validation
         if (labelLower.includes("email")) {
             if (!isValidEmail(valString)) return "Please enter a valid email address";
         }
 
-        // 6. Generic Number Validation (for other numeric fields)
+        // 9. URL validation for portfolio/resume/link fields
+        if (
+            labelLower.includes("linkedin") ||
+            labelLower.includes("portfolio") ||
+            labelLower.includes("google drive") ||
+            labelLower.includes("resume") ||
+            labelLower.includes("url")
+        ) {
+            try {
+                new URL(valString);
+            } catch {
+                return `${cleanLabel} must be a valid URL (include https://)`;
+            }
+        }
+
+        // 10. Generic Number Validation (for other numeric fields)
         if (
             (question.type === "short_answer" && labelLower.includes("number") && !labelLower.includes("contact number") && !labelLower.includes("phone")) ||
             labelLower.includes("gpa") ||
@@ -351,7 +426,41 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
             if (!isValidNumber(valString)) return "Please enter a valid number";
         }
 
-        // 7. Min/Max Logic (for number inputs)
+        // 11. Word limits for long-answer fields
+        if (question.type === "paragraph" || question.type === "short_answer") {
+            const words = countWords(valString);
+
+            if (labelLower.includes("hands-on") && labelLower.includes("project")) {
+                if (words > 100) return `Projects description is too long (${words} words). Please keep it to 100 words or fewer.`;
+            }
+
+            if (labelLower.includes("professional") && labelLower.includes("internship")) {
+                if (words > 200) return `Experience description is too long (${words} words). Please keep it to 200 words or fewer.`;
+            }
+
+            if (labelLower.includes("medication delivery system is failing")) {
+                if (words > 500) return `Challenge answer is too long (${words} words). Please keep it to 500 words or fewer.`;
+            }
+
+            // Healthcare-specific limits
+            if (labelLower.includes("clinical efficiency")) {
+                if (words > 200) return `Clinical efficiency response is too long (${words} words). Please keep it to 200 words or fewer.`;
+            }
+
+            if (labelLower.includes("data paradox")) {
+                if (words > 200) return `Data paradox response is too long (${words} words). Please keep it to 200 words or fewer.`;
+            }
+
+            if (labelLower.includes("enthusiasm")) {
+                if (words > 100) return `Enthusiasm response is too long (${words} words). Please keep it to 100 words or fewer.`;
+            }
+
+            if (labelLower.includes("collaborative spirit")) {
+                if (words > 100) return `Collaborative spirit response is too long (${words} words). Please keep it to 100 words or fewer.`;
+            }
+        }
+
+        // 12. Min/Max Logic (for number inputs)
         if (isValidNumber(valString) && (question.min !== undefined || question.max !== undefined)) {
             const num = Number(valString);
             if (question.min !== undefined && num < question.min) return `Minimum value is ${question.min}`;
@@ -674,7 +783,17 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
             });
 
             if (!res.ok) {
-                const data = await res.json();
+                let data: any = {};
+                try {
+                    data = await res.json();
+                } catch {
+                    try {
+                        const fallbackText = await res.text();
+                        data = fallbackText ? { error: fallbackText } : {};
+                    } catch {
+                        data = {};
+                    }
+                }
                 console.error("Submission failed - Status:", res.status);
                 console.error("Submission failed - Response:", data);
 
@@ -795,7 +914,17 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                             });
 
                             if (!res.ok) {
-                                const data = await res.json();
+                                let data: any = {};
+                                try {
+                                    data = await res.json();
+                                } catch {
+                                    try {
+                                        const fallbackText = await res.text();
+                                        data = fallbackText ? { error: fallbackText } : {};
+                                    } catch {
+                                        data = {};
+                                    }
+                                }
 
                                 // Handle duplicate submission specifically
                                 if (res.status === 409 && data.error === "User already exists") {
@@ -804,6 +933,17 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                                     setSubmitting(false);
                                     return;
                                 }
+
+                                if (res.status === 400 && Array.isArray(data.details)) {
+                                    setError(`Please fix the following issues: ${data.details.join('. ')}`);
+                                } else if (res.status === 429) {
+                                    setError(data.error || "Too many requests. Please try again later.");
+                                } else {
+                                    setError(data.error || "Failed to submit form. Please try again.");
+                                }
+                                setAutoSubmitting(false);
+                                setSubmitting(false);
+                                return;
                             }
 
                             setAutoSubmitSuccess(true);
@@ -923,7 +1063,10 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                         type="text"
                         placeholder={question.placeholder || "Enter your answer..."}
                         value={(responses[question.id] as string) || ""}
-                        onChange={(e) => updateResponse(question.id, e.target.value)}
+                        onChange={(e) => {
+                            updateResponse(question.id, e.target.value);
+                            setTouched(prev => ({ ...prev, [question.id]: true }));
+                        }}
                         onBlur={() => setTouched(prev => ({ ...prev, [question.id]: true }))}
                         className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/50 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500 focus:ring-2 focus:ring-[#007b8a] focus:border-transparent transition-all outline-none"
                     />
@@ -944,7 +1087,10 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                             placeholder={question.placeholder || "Enter your answer..."}
                             rows={4}
                             value={text}
-                            onChange={(e) => updateResponse(question.id, e.target.value)}
+                            onChange={(e) => {
+                                updateResponse(question.id, e.target.value);
+                                setTouched(prev => ({ ...prev, [question.id]: true }));
+                            }}
                             onBlur={() => setTouched(prev => ({ ...prev, [question.id]: true }))}
                             className={`w-full px-4 py-3 rounded-xl border ${isOverLimit
                                 ? "border-red-500 ring-1 ring-red-500"
@@ -1649,7 +1795,7 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                                             </span>
                                             <h4 className="text-xl font-medium text-zinc-900 dark:text-white leading-snug">
                                                 {question.label}
-                                                {question.required && <span className="text-red-500 ml-1" title="Required">*</span>}
+                                                {isQuestionRequiredForCurrentForm(question, formType) && <span className="text-red-500 ml-1" title="Required">*</span>}
                                             </h4>
                                         </div>
                                         {question.description && (
