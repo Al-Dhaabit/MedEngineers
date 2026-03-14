@@ -61,7 +61,7 @@ export function DataTable<TData, TValue>({
                     ) : (
                         <TableRow>
                             <TableCell colSpan={columns.length} className="h-24 text-center">
-                                No medicine competitors found.
+                                No Payments found.
                             </TableCell>
                         </TableRow>
                     )}

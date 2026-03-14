@@ -164,6 +164,7 @@ export async function POST(req: NextRequest) {
                     major: responses["1740303904"] || "",
                     isPaid: false,
                     submitted: true,
+                    status: "pending",
                     submittedAt: admin.firestore.FieldValue.serverTimestamp(),
                     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 }, { merge: true });
@@ -181,7 +182,8 @@ export async function POST(req: NextRequest) {
                 return NextResponse.json(
                     {
                         error: "Failed to save application to database",
-                        code: "FIREBASE_SAVE_ERROR"
+                        code: "FIREBASE_SAVE_ERROR",
+                        details: fbError instanceof Error ? fbError.message : String(fbError)
                     },
                     { status: 500 }
                 );
@@ -281,7 +283,8 @@ export async function POST(req: NextRequest) {
                 return NextResponse.json(
                     {
                         error: "Failed to save application to database",
-                        code: "FIREBASE_SAVE_ERROR"
+                        code: "FIREBASE_SAVE_ERROR",
+                        details: fbError instanceof Error ? fbError.message : String(fbError)
                     },
                     { status: 500 }
                 );

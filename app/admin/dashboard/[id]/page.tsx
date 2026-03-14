@@ -2,6 +2,7 @@ import { adminDb } from "@/lib/firebaseAdmin";
 import { notFound } from "next/navigation";
 import LogoutButton from "@/components/logout";
 import StatusManager from "./StatusManager";
+import DomainAISection from "@/components/DomainAISection";
 
 // Add these exports to disable caching
 export const dynamic = 'force-dynamic';
@@ -17,34 +18,49 @@ async function getCompetitor(id: string): Promise<Competitor | null> {
         console.error('Invalid competitor ID:', id);
         return null;
     }
-    
+
     const doc = await adminDb.collection("competitors").doc(id.trim()).get();
-    
+
     if (!doc.exists) {
         console.error('Competitor document not found for ID:', id);
         return null;
     }
-    
+
     const data = doc.data();
-    console.log('Competitor data:', data); // Debug log to see all fields
-    
+    // console.log('Competitor data:', data); 
+
     return {
         id: doc.id,
         ...data
     } as Competitor;
 }
 
-export default async function CompetitorDetailPage({
-    params
-}: {
-    params: Promise<{ id: string }>
-}) {
+export default async function CompetitorDetailPage({ params }: { params: Promise<{ id: string }> }) {
+
     const resolvedParams = await params;
     console.log('Page params:', resolvedParams);
     console.log('Competitor ID:', resolvedParams.id);
-    
+
     const competitor = await getCompetitor(resolvedParams.id);
-    
+    let competitorEngineer;
+
+    if (competitor?.major === "Engineering") {
+        competitorEngineer = {
+            id: competitor.id,
+            fullName: competitor.fullName,
+            email: competitor.email,
+            major: competitor.major,
+            group1: competitor.group1,
+            group2: competitor.group2,
+            group3: competitor.group3,
+            group4: competitor.group4,
+            workStyle: competitor.workStyle,
+            handsOnProject: competitor.projects,
+            professionalExp: competitor.experience,
+            scenarioResponse: competitor.challengeAnswer,
+        }
+    }
+
     if (!competitor) {
         notFound();
     }
@@ -56,21 +72,22 @@ export default async function CompetitorDetailPage({
                     ← Back to Dashboard
                 </a>
             </div>
-            
+
             <div className="border rounded-lg p-6">
                 <h1 className="text-2xl font-bold mb-4">Competitor Details</h1>
-                
-                <StatusManager 
-                    competitorId={competitor.id} 
-                    currentStatus={competitor.status || 'pending'} 
+
+                <StatusManager
+                    competitorId={competitor.id}
+                    currentStatus={competitor.status || 'pending'}
                 />
-                
+
                 <div className="mb-6">
                     <h3 className="font-semibold text-gray-700 mb-4">Application Details</h3>
                     <div className="bg-gray-50 rounded-lg p-6">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {Object.entries(competitor)
                                 .filter(([key]) => key !== 'id') // Exclude the ID field
+                                .filter(([key]) => key !== 'paymentProof') // Exclude the payment proof field
                                 .sort(([a], [b]) => a.localeCompare(b)) // Sort alphabetically
                                 .map(([key, value]) => (
                                     <div key={key} className="border-b border-gray-200 pb-3">
@@ -85,15 +102,15 @@ export default async function CompetitorDetailPage({
                                                     // Check if it's a URL
                                                     if (value.startsWith('http')) {
                                                         return (
-                                                            <a 
-                                                                href={value} 
-                                                                target="_blank" 
+                                                            <a
+                                                                href={value}
+                                                                target="_blank"
                                                                 rel="noopener noreferrer"
                                                                 className="text-blue-600 hover:underline"
                                                             >
-                                                                {value.includes('linkedin') ? 'LinkedIn Profile' : 
-                                                                 value.includes('resume') || value.includes('cv') ? 'View Resume' :
-                                                                 'Open Link'}
+                                                                {value.includes('linkedin') ? 'LinkedIn Profile' :
+                                                                    value.includes('resume') || value.includes('cv') ? 'View Resume' :
+                                                                        'Open Link'}
                                                             </a>
                                                         );
                                                     }
@@ -114,6 +131,9 @@ export default async function CompetitorDetailPage({
                         </div>
                     </div>
                 </div>
+
+                {/* Put domain AI widget here for Engineering students only  */}
+                {competitor.major === "Engineering" && <DomainAISection competitorEngineer={competitorEngineer} />}
 
                 <div className="flex gap-4">
                     <LogoutButton />
