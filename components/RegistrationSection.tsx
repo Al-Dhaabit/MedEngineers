@@ -664,7 +664,7 @@ export function RegistrationSection() {
 
         {/* 3. AWAITING PAYMENT VIEW: Bank Transfer & Google Form (Premium Dark) */}
         {isAwaitingPayment && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 bg-black min-h-screen pt-12">
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 py-12">
             <div className="mx-auto max-w-3xl text-center mb-16">
               <div className="mb-6 flex justify-center">
 
@@ -797,34 +797,25 @@ export function RegistrationSection() {
                   <div className="absolute inset-0 bg-gradient-to-b from-[#007b8a]/5 to-transparent pointer-events-none" />
 
                   <div className="max-w-2xl mx-auto border border-zinc-800/80 rounded-xl overflow-hidden bg-[#1f1f22] relative z-10 shadow-inner">
-                    <table className="w-full text-left">
-                      <tbody className="divide-y divide-zinc-800/80 text-[15px]">
-                        <tr className="hover:bg-zinc-800/30 transition-colors">
-                          <td className="px-6 py-5 font-bold text-zinc-200 w-1/3">Account Name</td>
-                          <td className="px-6 py-5 text-zinc-400 font-medium">RIT Dubai FZE</td>
-                        </tr>
-                        <tr className="hover:bg-zinc-800/30 transition-colors">
-                          <td className="px-6 py-5 font-bold text-zinc-200">Bank Name</td>
-                          <td className="px-6 py-5 text-zinc-400">Emirates NBD PJSC</td>
-                        </tr>
-                        <tr className="hover:bg-zinc-800/30 transition-colors">
-                          <td className="px-6 py-5 font-bold text-zinc-200">Branch</td>
-                          <td className="px-6 py-5 text-zinc-400">Dubai Silicon Oasis</td>
-                        </tr>
-                        <tr className="hover:bg-zinc-800/30 transition-colors">
-                          <td className="px-6 py-5 font-bold text-zinc-200">Account Number</td>
-                          <td className="px-6 py-5 text-zinc-400 font-mono tracking-wider">1102425560201</td>
-                        </tr>
-                        <tr className="hover:bg-zinc-800/30 transition-colors">
-                          <td className="px-6 py-5 font-bold text-zinc-200">SWIFT Code</td>
-                          <td className="px-6 py-5 text-zinc-400 font-mono tracking-wider">EBILAEAD</td>
-                        </tr>
-                        <tr className="hover:bg-zinc-800/30 transition-colors">
-                          <td className="px-6 py-5 font-bold text-zinc-200">IBAN Code</td>
-                          <td className="px-6 py-5 text-zinc-400 font-mono tracking-wider">AE390260001102425560201</td>
-                        </tr>
-                      </tbody>
-                    </table>
+                    <div className="divide-y divide-zinc-800/80 text-[14px] sm:text-[15px]">
+                      {[
+                        { label: "Account Name", value: "RIT Dubai FZE", isMedium: true },
+                        { label: "Bank Name", value: "Emirates NBD PJSC" },
+                        { label: "Branch", value: "Dubai Silicon Oasis" },
+                        { label: "Account Number", value: "1102425560201", isMono: true },
+                        { label: "SWIFT Code", value: "EBILAEAD", isMono: true },
+                        { label: "IBAN Code", value: "AE390260001102425560201", isMono: true, breakAll: true },
+                      ].map((item, i) => (
+                        <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between hover:bg-zinc-800/30 transition-colors px-4 py-4 sm:px-8 sm:py-5">
+                          <div className="font-bold text-zinc-200 w-full sm:w-1/3 mb-1 sm:mb-0 uppercase tracking-tight text-[11px] sm:text-xs">
+                            {item.label}
+                          </div>
+                          <div className={`text-zinc-400 ${item.isMedium ? 'font-medium' : ''} ${item.isMono ? 'font-mono tracking-wider' : ''} ${item.breakAll ? 'break-all' : ''} flex-1 sm:text-right text-sm sm:text-base`}>
+                            {item.value}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -834,10 +825,10 @@ export function RegistrationSection() {
                 <div className="bg-black px-6 py-5 flex items-center justify-center border-b border-zinc-900">
                   <h3 className="text-white font-bold text-lg tracking-wide uppercase">SUBMIT PAYMENT PROOF</h3>
                 </div>
-                <div className="p-6 sm:p-10">
-                  <form onSubmit={handlePaymentProofSubmit} className="bg-[#1f1f22] rounded-xl border border-zinc-700/60 p-6 sm:p-8 space-y-6">
+                <div className="p-4 sm:p-10">
+                  <form onSubmit={handlePaymentProofSubmit} className="bg-[#1f1f22] rounded-xl border border-zinc-700/60 p-5 sm:p-8 space-y-5 sm:space-y-6">
                     <div className="text-left">
-                      <label htmlFor="transaction-id" className="block text-sm font-semibold text-zinc-200 mb-2">
+                      <label htmlFor="transaction-id" className="block text-xs sm:text-sm font-semibold text-zinc-200 mb-2 uppercase tracking-wider">
                         Transaction ID
                       </label>
                       <input
@@ -845,14 +836,14 @@ export function RegistrationSection() {
                         type="text"
                         value={ui.transactionID}
                         onChange={(e) => updateUi({ transactionID: e.target.value })}
-                        placeholder="Enter your bank transfer transaction ID"
-                        className="w-full rounded-lg border border-zinc-600 bg-zinc-900 px-4 py-3 text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#007b8a]"
+                        placeholder="Enter bank transaction ID"
+                        className="w-full rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-2.5 sm:px-4 sm:py-3 text-sm sm:text-base text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#007b8a]"
                         required
                       />
                     </div>
 
                     <div className="text-left">
-                      <label htmlFor="payment-proof-file" className="block text-sm font-semibold text-zinc-200 mb-2">
+                      <label htmlFor="payment-proof-file" className="block text-xs sm:text-sm font-semibold text-zinc-200 mb-2 uppercase tracking-wider">
                         Payment Proof File
                       </label>
                       <input
@@ -863,25 +854,27 @@ export function RegistrationSection() {
                           const file = e.target.files?.[0] || null;
                           updateUi({ paymentProofFile: file });
                         }}
-                        className="w-full rounded-lg border border-zinc-600 bg-zinc-900 px-4 py-3 text-zinc-300 file:mr-4 file:rounded-md file:border-0 file:bg-[#007b8a] file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-[#00a8bd]"
+                        className="w-full rounded-lg border border-zinc-600 bg-zinc-900 px-3 py-2 sm:px-4 sm:py-3 text-xs sm:text-sm text-zinc-300 file:mr-3 file:sm:mr-4 file:rounded-md file:border-0 file:bg-[#007b8a] file:px-3 file:py-2 file:text-[10px] file:sm:text-sm file:font-bold file:uppercase file:tracking-wider file:text-white hover:file:bg-[#00a8bd]"
                         required
                       />
-                      <p className="mt-2 text-xs text-zinc-500">Accepted formats: PDF, PNG, JPG, JPEG, WEBP. Max size: 700KB.</p>
+                      <p className="mt-2 text-[10px] sm:text-xs text-zinc-500">Accepted: PDF, PNG, JPG, WEBP. Max: 700KB.</p>
                     </div>
 
                     {ui.paymentProofError && (
-                      <div className="rounded-lg border border-red-800/60 bg-red-900/20 px-4 py-3 text-sm text-red-300">
+                      <div className="rounded-lg border border-red-800/60 bg-red-900/20 px-4 py-3 text-xs text-red-300">
                         {ui.paymentProofError}
                       </div>
                     )}
 
-                    <button
-                      type="submit"
-                      disabled={ui.isSubmittingPaymentProof}
-                      className="w-full sm:w-auto px-8 py-3 bg-[#007b8a] hover:bg-[#00a8bd] disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold rounded-lg shadow-lg shadow-[#007b8a]/20 transition-all"
-                    >
-                      {ui.isSubmittingPaymentProof ? "Submitting..." : "Submit Payment Proof"}
-                    </button>
+                    <div className="flex justify-center">
+                      <button
+                        type="submit"
+                        disabled={ui.isSubmittingPaymentProof}
+                        className="w-full sm:w-fit sm:min-w-[180px] px-8 py-2.5 bg-[#007b8a] hover:bg-[#00a8bd] disabled:opacity-60 disabled:cursor-not-allowed text-white font-bold rounded-lg shadow-lg shadow-[#007b8a]/20 transition-all text-xs sm:text-sm uppercase tracking-widest"
+                      >
+                        {ui.isSubmittingPaymentProof ? "Submitting..." : "Submit"}
+                      </button>
+                    </div>
                   </form>
                 </div>
               </div>
@@ -891,14 +884,12 @@ export function RegistrationSection() {
 
         {/* 3.2 PAYMENT REVIEW VIEW: Payment Review Status (Premium Dark) */}
         {isPaymentUnderReview && (
-          <div className="mx-auto max-w-2xl text-center py-20 animate-in zoom-in-95 duration-500 bg-black min-h-screen pt-24 px-4">
+          <div className="mx-auto max-w-2xl text-center py-12 animate-in zoom-in-95 duration-500 px-4">
             <div className="mb-8 flex justify-center relative">
               <div className="absolute inset-0 bg-[#007b8a]/20 blur-2xl rounded-full w-32 h-32 mx-auto animate-pulse" />
               <div className="h-24 w-24 rounded-full bg-[#002f35]/80 border border-[#007b8a]/40 shadow-[0_0_40px_rgba(0,123,138,0.25)] flex items-center justify-center relative z-10 backdrop-blur-md">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-12 h-12 text-[#00a8bd]">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 2v20m-5-10h10M4.293 4.293l15.414 15.414" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m-6-8h6" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607ZM10.5 7.5h7.5m-7.5 3h7.5m-7.5 3h3" />
                 </svg>
               </div>
             </div>
@@ -1009,9 +1000,9 @@ export function RegistrationSection() {
               </p>
 
 
-              {/* Domain Grid: Reworked for Premium Feel */}
+              {/* Domain Grid: Premium Mission Briefing Style */}
               {!ui.isDomainConfirmed ? (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
                   {[
                     {
                       id: "A",
@@ -1068,81 +1059,76 @@ export function RegistrationSection() {
                     <div
                       key={domain.id}
                       onClick={() => updateUi({ selectedDomain: domain.id })}
-                      className={`group relative p-8 rounded-3xl border transition-all duration-500 cursor-pointer ${ui.selectedDomain === domain.id
-                        ? "bg-zinc-50 dark:bg-[#007b8a]/5 border-[#007b8a] shadow-[0_0_40px_rgba(0,123,138,0.15)] ring-1 ring-[#007b8a]/20"
-                        : "bg-white dark:bg-black border-zinc-200 dark:border-zinc-800 hover:border-[#007b8a]/40"
+                      className={`group relative p-6 sm:p-8 rounded-[2rem] border transition-all duration-500 cursor-pointer flex flex-col h-full ${ui.selectedDomain === domain.id
+                        ? "bg-[#007b8a]/5 border-[#007b8a] shadow-[0_0_50px_rgba(0,123,138,0.15)] ring-1 ring-[#007b8a]/30"
+                        : "bg-white dark:bg-zinc-900/40 border-zinc-200 dark:border-zinc-800/80 hover:border-[#007b8a]/40"
                         }`}
                     >
-                      {/* Technical ID */}
-                      <div className="absolute top-6 right-8 font-mono text-[9px] font-black tracking-[0.2em] text-zinc-300 dark:text-zinc-700">
-                        SEC_ID: 0{domain.id === 'A' ? 1 : domain.id === 'B' ? 2 : 3}
-                      </div>
-
-                      {/* Icon & Category */}
-                      <div className="flex items-center gap-4 mb-8">
-                        <div className={`w-12 h-12 flex items-center justify-center rounded-2xl transition-all duration-500 ${ui.selectedDomain === domain.id ? "bg-[#007b8a] text-white shadow-lg shadow-[#007b8a]/30 rotate-3" : "bg-zinc-100 dark:bg-zinc-900 text-[#007b8a]"}`}>
-                          {domain.icon}
-                        </div>
-                        <div className="text-left">
-                          <span className="block text-[10px] font-black uppercase tracking-widest text-[#007b8a] mb-0.5">Domain {domain.id}</span>
-                          <span className="block text-xs font-medium text-zinc-400">{domain.tagline}</span>
-                        </div>
-                      </div>
-
-                      <h3 className="text-xl font-bold text-zinc-900 dark:text-white mb-4 text-left leading-tight group-hover:text-[#007b8a] transition-colors">
-                        {domain.title}
-                      </h3>
-
-                      {/* Action Area */}
-                      <div className="flex items-center justify-between mt-auto">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            updateUi({ expandedDomain: ui.expandedDomain === domain.id ? null : domain.id });
-                          }}
-                          className={`text-[10px] font-black uppercase tracking-widest px-4 py-2 rounded-full border transition-all ${ui.expandedDomain === domain.id ? "bg-[#007b8a] border-[#007b8a] text-white" : "border-zinc-200 dark:border-zinc-800 text-zinc-500 dark:text-zinc-400 hover:border-[#007b8a] hover:text-[#007b8a]"}`}
-                        >
-                          {ui.expandedDomain === domain.id ? "Close Brief" : "View Brief"}
-                        </button>
-
-                        {ui.selectedDomain === domain.id && (
-                          <div className="flex items-center gap-2 animate-in fade-in zoom-in slide-in-from-right-2">
-                            <span className="text-[10px] font-black uppercase tracking-tighter text-[#007b8a]">Selected</span>
-                            <div className="w-2 h-2 rounded-full bg-[#007b8a] animate-pulse" />
+                      {/* Selection Affordance Indicator */}
+                      <div className="absolute top-6 right-6">
+                        {ui.selectedDomain === domain.id ? (
+                          <div className="w-6 h-6 rounded-full bg-[#007b8a] flex items-center justify-center shadow-[0_0_15px_rgba(0,123,138,0.5)] animate-in zoom-in duration-300">
+                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                        ) : (
+                          <div className="w-6 h-6 rounded-full border-2 border-zinc-200 dark:border-zinc-800 group-hover:border-[#007b8a]/50 transition-colors flex items-center justify-center">
+                            <div className="w-2 h-2 rounded-full bg-[#007b8a] opacity-0 group-hover:opacity-40 transition-opacity" />
                           </div>
                         )}
                       </div>
 
-                      {/* Precision Expansion Detail */}
-                      <div className={`overflow-hidden transition-all duration-700 ease-[cubic-bezier(0.2,0,0,1)] ${ui.expandedDomain === domain.id ? "max-h-[800px] opacity-100 mt-8" : "max-h-0 opacity-0"}`}>
-                        <div className="pt-8 border-t border-zinc-100 dark:border-zinc-800/50 space-y-8 text-left">
+                      {/* Header Section */}
+                      <div className="flex items-start gap-4 mb-8">
+                        <div className={`w-12 h-12 flex items-center justify-center rounded-2xl transition-all duration-500 group-hover:scale-110 ${ui.selectedDomain === domain.id ? "bg-[#007b8a] text-white shadow-lg shadow-[#007b8a]/30" : "bg-zinc-100 dark:bg-zinc-800 text-[#007b8a]"}`}>
+                          {domain.icon}
+                        </div>
+                        <div className="text-left pr-8">
+                          <span className="block text-[10px] font-black uppercase tracking-widest text-[#007b8a] mb-0.5">Domain {domain.id}</span>
+                          <h3 className="text-lg sm:text-xl font-bold text-zinc-900 dark:text-white leading-tight group-hover:text-[#007b8a] transition-colors">
+                            {domain.title}
+                          </h3>
+                        </div>
+                      </div>
 
-                          <div>
-                            <label className="text-[9px] font-black uppercase tracking-[0.2em] text-[#007b8a] block mb-3">01. Tactical Scope</label>
-                            <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed tabular-nums">
-                              {domain.definition}
-                            </p>
-                          </div>
+                      {/* Mission Brief Content */}
+                      <div className="space-y-6 text-left flex-1">
+                        <div>
+                          <label className="text-[9px] font-black uppercase tracking-[0.2em] text-[#007b8a] block mb-2 opacity-70">01. Tactical Scope</label>
+                          <p className="text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed tabular-nums">
+                            {domain.definition}
+                          </p>
+                        </div>
 
-                          <div>
-                            <label className="text-[9px] font-black uppercase tracking-[0.2em] text-[#007b8a] block mb-3">02. Mission Objective</label>
-                            <p className="text-[15px] font-bold text-zinc-900 dark:text-zinc-200 leading-snug">
-                              {domain.goal}
-                            </p>
-                          </div>
+                        <div>
+                          <label className="text-[9px] font-black uppercase tracking-[0.2em] text-[#007b8a] block mb-2 opacity-70">02. Mission Objective</label>
+                          <p className="text-[14px] font-bold text-zinc-800 dark:text-zinc-200 leading-snug">
+                            {domain.goal}
+                          </p>
+                        </div>
 
-                          <div>
-                            <label className="text-[9px] font-black uppercase tracking-[0.2em] text-[#007b8a] block mb-4">03. Project Precedents</label>
-                            <div className="space-y-4">
-                              {domain.examples.map((ex, i) => (
-                                <div key={i} className="group/item bg-zinc-50 dark:bg-white/5 p-4 rounded-xl border border-transparent hover:border-[#007b8a]/20 transition-all">
-                                  <span className="text-sm font-bold text-zinc-900 dark:text-zinc-100 block mb-1">{ex.name}</span>
-                                  <span className="text-[11px] text-zinc-400 leading-tight block">{ex.desc}</span>
-                                </div>
-                              ))}
-                            </div>
+                        <div className="pt-4 border-t border-zinc-100 dark:border-zinc-800/50">
+                          <label className="text-[9px] font-black uppercase tracking-[0.2em] text-[#007b8a] block mb-3 opacity-70">03. Project Precedents</label>
+                          <div className="grid grid-cols-1 gap-2">
+                            {domain.examples.map((ex, i) => (
+                              <div key={i} className="bg-zinc-100/50 dark:bg-zinc-800/30 p-3 rounded-xl border border-transparent hover:border-[#007b8a]/10 transition-all">
+                                <span className="text-[12px] font-bold text-zinc-900 dark:text-zinc-100 block">{ex.name}</span>
+                                <span className="text-[10px] text-zinc-500 dark:text-zinc-400 leading-tight block">{ex.desc}</span>
+                              </div>
+                            ))}
                           </div>
                         </div>
+                      </div>
+
+                      {/* Technical Decorative ID */}
+                      <div className="mt-8 pt-4 border-t border-zinc-100 dark:border-zinc-800/50 flex items-center justify-between">
+                        <span className="font-mono text-[9px] font-black tracking-[0.2em] text-zinc-300 dark:text-zinc-700">
+                          REF_CODE: MED_{domain.id}26
+                        </span>
+                        {ui.selectedDomain === domain.id && (
+                          <span className="text-[10px] font-black uppercase text-[#007b8a] animate-pulse">Ready to Deploy</span>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -1194,23 +1180,23 @@ export function RegistrationSection() {
               )}
 
               {/* Action Buttons */}
-              <div className="mt-20 flex flex-col items-center gap-6">
+              <div className="mt-10 flex flex-col items-center gap-6">
                 {!ui.isDomainConfirmed ? (
                   <button
                     disabled={!ui.selectedDomain || ui.isUpdatingDomain}
                     onClick={handleConfirmDomain}
-                    className={`px-12 py-3 rounded-full font-bold transition-all text-sm uppercase tracking-widest shadow-lg ${ui.selectedDomain && !ui.isUpdatingDomain
+                    className={`px-12 py-3 rounded-full font-bold transition-all text-xs sm:text-sm uppercase tracking-widest shadow-lg ${ui.selectedDomain && !ui.isUpdatingDomain
                       ? "bg-[#007b8a] text-white hover:bg-[#00606b] hover:scale-105 active:scale-95 shadow-[#007b8a]/20"
                       : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed"
                       }`}
                   >
-                    {ui.isUpdatingDomain ? "Verifying..." : "Confirm Domain"}
+                    {ui.isUpdatingDomain ? "Verifying..." : "Confirm"}
                   </button>
                 ) : (
                   <button
                     disabled={!ui.isDomainSubmitted || ui.isUpdatingDomain}
                     onClick={handleGoToFinalPhase}
-                    className={`px-12 py-3 rounded-full font-bold transition-all text-sm uppercase tracking-widest shadow-lg ${ui.isDomainSubmitted && !ui.isUpdatingDomain
+                    className={`px-12 py-2.5 rounded-full font-bold transition-all text-xs sm:text-sm uppercase tracking-widest shadow-lg ${ui.isDomainSubmitted && !ui.isUpdatingDomain
                       ? "bg-[#007b8a] text-white hover:bg-[#00606b] hover:scale-105 active:scale-95 shadow-[#007b8a]/20"
                       : "bg-zinc-100 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed"
                       }`}
@@ -1219,10 +1205,10 @@ export function RegistrationSection() {
                   </button>
                 )}
                 <p className="text-xs text-zinc-400 flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  {/* <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  Selection is preliminary. You can finalize your domain choice during the team formation phase.
+                  </svg> */}
+                  {/* Selection is preliminary. You can finalize your domain choice during the team formation phase. */}
                 </p>
               </div>
             </div>
@@ -1260,8 +1246,8 @@ export function RegistrationSection() {
               </div>
 
               {/* Reworked Timer */}
-              <div className="mb-12">
-                <CountdownTimer targetDate="2026-03-28T00:00:00" />
+              <div className="mb-12"> 
+                <CountdownTimer targetDate="2026-05-23T00:00:00" />
               </div>
 
               {/* Mission Briefing Section (Reworked from "Words of Encouragement") */}

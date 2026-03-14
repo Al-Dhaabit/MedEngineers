@@ -4,7 +4,7 @@ export function EventDetails() {
   const details = [
     {
       name: 'Date',
-      description: 'March 28, 2026',
+      description: 'May 23, 2026',
       icon: (
         <CalendarIcon className="w-16 h-16 text-[#007b8a] group-hover:scale-110 transition-transform duration-300" />
       ),
