@@ -498,12 +498,7 @@ export function calculateDomainRecommendation(responses: EngineerResponses): Dom
 /**
  * Generate human-readable reasoning for the recommendation
  */
-function generateReasoning(
-    recommended: DomainScore,
-    allScores: DomainScore[],
-    responses: EngineerResponses,
-    confidence: 'high' | 'medium' | 'low'
-): string {
+function generateReasoning(recommended: DomainScore, allScores: DomainScore[], responses: EngineerResponses, confidence: 'high' | 'medium' | 'low'): string {
     const parts: string[] = [];
 
     // Lead with the recommendation

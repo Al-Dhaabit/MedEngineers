@@ -147,6 +147,12 @@ export async function POST(req: NextRequest) {
 
             const updateData: any = {
                 isPaid: true,
+                workflowStatus: "payment_confirmed",
+                payment: {
+                    reviewStatus: "approved",
+                    reviewedAt: now,
+                    reviewedBy: "tickettailor_webhook"
+                },
                 paymentDate: now,
                 updatedAt: now,
                 ticketId: order.id

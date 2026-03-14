@@ -817,7 +817,8 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                 }
                 // Handle other errors
                 else {
-                    setError(data.error || "Failed to submit form. Please try again.");
+                    const extra = data?.details ? ` (${data.details})` : "";
+                    setError((data.error || "Failed to submit form. Please try again.") + extra);
                 }
                 setSubmitting(false);
                 return;
@@ -939,7 +940,8 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                                 } else if (res.status === 429) {
                                     setError(data.error || "Too many requests. Please try again later.");
                                 } else {
-                                    setError(data.error || "Failed to submit form. Please try again.");
+                                    const extra = data?.details ? ` (${data.details})` : "";
+                                    setError((data.error || "Failed to submit form. Please try again.") + extra);
                                 }
                                 setAutoSubmitting(false);
                                 setSubmitting(false);

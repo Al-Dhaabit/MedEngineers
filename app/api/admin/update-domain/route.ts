@@ -4,10 +4,6 @@ import { verifyAdminSession } from "@/lib/adminAuth";
 import admin from "firebase-admin";
 import { logger } from "@/lib/logger";
 
-// --------------------------------------------------------
-// Purpose: Update user domain for all competitors
-// --------------------------------------------------------
-
 const DOMAIN_NAMES: Record<"A" | "B" | "C", string> = {
     A: "Medical Tools & Hardware",
     B: "Clinical Systems & Operations",
@@ -18,8 +14,6 @@ export async function POST(request: NextRequest) {
     const requestId = logger.getRequestId();
 
     try {
-
-        // 1. Verify Admin Session
         let adminUser;
         try {
             adminUser = await verifyAdminSession();
@@ -35,11 +29,9 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized - Please sign in as admin" }, { status: 401 });
         }
 
-        // 2. Parse Request Body
         const body = await request.json();
         const { competitorId, domain } = body ?? {};
 
-        // 3. Validate Request Body
         if (!competitorId || !domain) {
             return NextResponse.json({ error: "Missing competitorId or domain" }, { status: 400 });
         }
@@ -48,21 +40,17 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: "Invalid domain value. Must be A, B, or C." }, { status: 400 });
         }
 
-        // 4. Find and Update User in Firestore
         const competitorRef = adminDb.collection("competitors").doc(String(competitorId));
         const competitorDoc = await competitorRef.get();
 
-        // 5. Validate Competitor Exists
         if (!competitorDoc.exists) {
             logger.error("Competitor not found", { requestId, competitorId });
             return NextResponse.json({ error: "Competitor not found" }, { status: 404 });
         }
 
-        // 6. Update Domain in Firestore
         const oldDomain = competitorDoc.data()?.domain || "";
         const now = new Date().toISOString();
         const fullDomain = `${domain}: ${DOMAIN_NAMES[domain as "A" | "B" | "C"]}`;
-
 
         await competitorRef.update({
             domain: fullDomain,
@@ -71,7 +59,6 @@ export async function POST(request: NextRequest) {
             lastDomainChangeAt: now,
         });
 
-        // 7. Return Success Response
         return NextResponse.json({
             success: true,
             domain: fullDomain,
@@ -79,7 +66,6 @@ export async function POST(request: NextRequest) {
             changedBy: adminUser.email,
         });
     } catch (error) {
-        // 8. Handle Unexpected Errors
         logger.error("Critical failure in domain update route", { requestId, error });
         return NextResponse.json({ error: "Internal server error during domain update" }, { status: 500 });
     }

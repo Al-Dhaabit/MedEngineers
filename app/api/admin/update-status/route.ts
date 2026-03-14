@@ -4,6 +4,10 @@ import { verifyAdminSession } from "@/lib/adminAuth";
 import admin from "firebase-admin";
 import { logger } from "@/lib/logger";
 
+// ===============================================
+// UPDATE COMPETITOR STATUS (ACCEPTED OR REJECTED)
+// ===============================================
+
 export async function POST(request: NextRequest) {
     const requestId = logger.getRequestId();
 
@@ -47,9 +51,16 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Validate status values (standardized to lowercase/PascalCase as needed)
-        // Note: The UI seems to send 'Accepted', 'Rejected', or 'pending'
-        const validStatuses = ['Accepted', 'Rejected', 'pending'];
+        // Validate and normalize status values
+        const validStatuses = [
+            'Accepted',
+            'Rejected',
+            'accepted',
+            'rejected',
+            'pending',
+            'approved_awaiting_payment_submission',
+            'rejected_awaiting_payment_submission',
+        ];
         if (!validStatuses.includes(status)) {
             return NextResponse.json(
                 { error: `Invalid status value. Must be one of: ${validStatuses.join(', ')}` },
@@ -74,9 +85,26 @@ export async function POST(request: NextRequest) {
         const oldStatus = competitorDoc.data()?.status || 'pending';
         const now = new Date().toISOString();
 
+        const normalizedStatus = String(status || "").toLowerCase();
+        const workflowStatus =
+            normalizedStatus === "accepted" ? "approved_awaiting_payment_submission" :
+                normalizedStatus === "rejected" ? "rejected_awaiting_payment_submission" :
+                    normalizedStatus === "approved_awaiting_payment_submission" ? "approved_awaiting_payment_submission" :
+                        normalizedStatus === "rejected_awaiting_payment_submission" ? "rejected_awaiting_payment_submission" :
+                            "pending";
+
+
+        // new field application_status. That stores accepted, rejected, pending ONLY
+        const applicationStatus = normalizedStatus === "accepted" ? "accepted" :
+            normalizedStatus === "rejected" ? "rejected" :
+                normalizedStatus === "approved_awaiting_payment_submission" ? "accepted" :
+                    normalizedStatus === "rejected_awaiting_payment_submission" ? "rejected" :
+                        "pending";
+
         // Update the document
         await competitorRef.update({
-            status: status,
+            status: workflowStatus,
+            application_status: applicationStatus,
             updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             lastStatusChangeBy: adminUser.email,
             lastStatusChangeAt: now
@@ -93,7 +121,7 @@ export async function POST(request: NextRequest) {
                 targetCollection: 'competitors',
                 targetUid: competitorId,
                 oldStatus: oldStatus,
-                newStatus: status,
+                newStatus: workflowStatus,
                 timestamp: admin.firestore.FieldValue.serverTimestamp(),
                 timestampISO: now,
                 metadata: {
@@ -118,7 +146,7 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({
             success: true,
-            status,
+            status: workflowStatus,
             oldStatus,
             changedBy: adminUser.email
         });

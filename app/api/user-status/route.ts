@@ -1,6 +1,95 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb, adminAuth } from "@/lib/firebaseAdmin";
 
+type AppDecision = "pending" | "accepted" | "rejected";
+type PaymentReviewStatus = "not_submitted" | "under_review" | "approved" | "rejected";
+type WorkflowStatus =
+    | "guest"
+    | "loading"
+    | "pending"
+    | "approved_awaiting_payment_submission"
+    | "rejected_awaiting_payment_submission"
+    | "payment_submitted_under_review"
+    | "payment_rejected"
+    | "payment_confirmed"
+    | "domain_selection"
+    | "final_phase";
+
+function normalizeStatus(value: unknown): string {
+    if (typeof value !== "string") return "";
+    return value.trim().toLowerCase();
+}
+
+function deriveAppDecision(statusValue: unknown): AppDecision {
+    const status = normalizeStatus(statusValue);
+    if (status === "accepted") return "accepted";
+    if (status === "rejected") return "rejected";
+    return "pending";
+}
+
+function derivePaymentReviewStatus(data: Record<string, any>): PaymentReviewStatus {
+    if (data.payment?.reviewStatus && typeof data.payment.reviewStatus === "string") {
+        const normalized = normalizeStatus(data.payment.reviewStatus);
+        if (normalized === "approved") return "approved";
+        if (normalized === "rejected") return "rejected";
+        if (normalized === "under_review") return "under_review";
+        if (normalized === "not_submitted") return "not_submitted";
+    }
+
+    if (data.paymentSuccessful === true) return "approved";
+    if (data.paymentSuccessful === false) return "rejected";
+    if (data.isPaid === true || data.isPayed === true) return "approved";
+    if (data.paymentProofSubmitted === true || data.paymentSubmitted === true) return "under_review";
+    return "not_submitted";
+}
+
+function normalizeWorkflowStatus(data: Record<string, any>): WorkflowStatus {
+    const raw = normalizeStatus(data.status || data.workflowStatus);
+
+    switch (raw) {
+        case "guest":
+            return "guest";
+        case "loading":
+            return "loading";
+        case "pending":
+            return "pending";
+        case "accepted":
+        case "approved_awaiting_payment_submission":
+            return "approved_awaiting_payment_submission";
+        case "rejected":
+        case "rejected_awaiting_payment_submission":
+            return "rejected_awaiting_payment_submission";
+        case "pending_payment":
+        case "payment_under_review":
+        case "payment_submitted_under_review":
+            return "payment_submitted_under_review";
+        case "payment_rejected":
+            return "payment_rejected";
+        case "payment_success":
+        case "payment_confirmed":
+            return "payment_confirmed";
+        case "domain_selection":
+            return "domain_selection";
+        case "final_phase":
+            return "final_phase";
+    }
+
+    // Derive app decision and payment status
+    const appDecision = deriveAppDecision(data.status);
+    const paymentStatus = derivePaymentReviewStatus(data);
+
+    // If rejected, return rejected_awaiting_payment_submission
+    if (appDecision === "rejected") return "rejected_awaiting_payment_submission";
+    if (appDecision === "pending") return "pending";
+
+    // If payment is approved, return payment_confirmed
+    if (paymentStatus === "approved") return "payment_confirmed";
+    if (paymentStatus === "rejected") return "payment_rejected";
+    if (paymentStatus === "under_review") return "payment_submitted_under_review";
+
+    return "approved_awaiting_payment_submission";
+}
+
 export async function POST(req: NextRequest) {
     try {
         const body = await req.json();
@@ -48,12 +137,22 @@ export async function POST(req: NextRequest) {
         if (userDoc.exists && userDoc.data()?.submitted === true) {
             const userData = userDoc.data();
             if (userData) {
+                const workflowStatus = normalizeWorkflowStatus(userData);
                 return NextResponse.json({
                     status: true,
                     type: "attendee",
-                    actualStatus: userData.status || "pending",
+                    workflowStatus,
+                    user: {
+                        uid,
+                        email: userData.email || decodedToken.email || "",
+                        major: userData.major || "",
+                        year: userData.year || "",
+                        majorType: userData.majorType || "",
+                        domain: userData.domain || "",
+                        status: workflowStatus,
+                        submissionType: "attendee",
+                    },
                     isPaid: userData.isPaid || userData.isPayed || false,
-                    major: userData.major || ""
                 }, { status: 200 });
             }
         }
@@ -63,12 +162,21 @@ export async function POST(req: NextRequest) {
         if (competitorDoc.exists && competitorDoc.data()?.submitted === true) {
             const competitorData = competitorDoc.data();
             if (competitorData) {
+                const workflowStatus = normalizeWorkflowStatus(competitorData);
                 return NextResponse.json({
                     status: true,
                     type: "competitor",
-                    actualStatus: competitorData.status || "pending",
+                    workflowStatus,
+                    user: {
+                        uid,
+                        email: competitorData.email || competitorData.universityEmail || decodedToken.email || "",
+                        major: competitorData.major || "",
+                        year: competitorData.year || "",
+                        majorType: competitorData.majorType || "",
+                        domain: competitorData.domain || "",
+                        submissionType: "competitor",
+                    },
                     isPaid: competitorData.isPaid || competitorData.isPayed || false,
-                    major: competitorData.major || ""
                 }, { status: 200 });
             }
         }
