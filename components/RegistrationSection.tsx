@@ -1247,7 +1247,7 @@ export function RegistrationSection() {
 
               {/* Reworked Timer */}
               <div className="mb-12"> 
-                <CountdownTimer targetDate="2026-05-23T00:00:00" />
+                <CountdownTimer targetDate="2026-05-23T09:00:00" />
               </div>
 
               {/* Mission Briefing Section (Reworked from "Words of Encouragement") */}
