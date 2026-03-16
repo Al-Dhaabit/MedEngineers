@@ -142,20 +142,30 @@ export async function POST(req: NextRequest) {
         const batch = adminDb.batch();
         const now = new Date().toISOString();
 
+        // Extract the ticket code from the first issued ticket (or best-effort fallback)
+        const ticketCode =
+            order.issued_tickets?.[0]?.barcode ||
+            order.issued_tickets?.[0]?.code ||
+            order.issued_tickets?.[0]?.ticket_code ||
+            order.tickets?.[0]?.ticket_code ||
+            order.tickets?.[0]?.code ||
+            null;
+
         results.forEach((doc) => {
             const colName = doc.ref.parent.id;
 
             const updateData: any = {
-                isPaid: true,
-                workflowStatus: "payment_confirmed",
-                payment: {
+                status: "ticket_confirmed",
+                ticketBought: true,
+                ticketTailor: {
                     reviewStatus: "approved",
                     reviewedAt: now,
-                    reviewedBy: "tickettailor_webhook"
+                    reviewedBy: "tickettailor_webhook",
+                    ticketDate: now,
+                    orderId: order.id,
+                    ticketCode: ticketCode
                 },
-                paymentDate: now,
                 updatedAt: now,
-                ticketId: order.id
             };
 
             if (colName === "attendees") {

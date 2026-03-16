@@ -24,6 +24,7 @@ async function getMedicineCompetitors(): Promise<Competitor[]> {
                 : rawStatus === "approved_awaiting_payment_submission" ||
                     rawStatus === "payment_submitted_under_review" ||
                     rawStatus === "payment_confirmed" ||
+                    rawStatus === "ticket_confirmed" ||
                     rawStatus === "payment_rejected" ||
                     rawStatus === "domain_selection" ||
                     rawStatus === "final_phase"
@@ -57,6 +58,7 @@ async function getEngineeringCompetitors(): Promise<Competitor[]> {
                 : rawStatus === "approved_awaiting_payment_submission" ||
                     rawStatus === "payment_submitted_under_review" ||
                     rawStatus === "payment_confirmed" ||
+                    rawStatus === "ticket_confirmed" ||
                     rawStatus === "payment_rejected" ||
                     rawStatus === "domain_selection" ||
                     rawStatus === "final_phase"
@@ -78,8 +80,8 @@ async function getPaymentSubmissions(): Promise<PaymentSubmission[]> {
     const attendeesRef = adminDb.collection("attendees");
     const competitorsRef = adminDb.collection("competitors");
     const [attendeeSnapshot, competitorSnapshot] = await Promise.all([
-        attendeesRef.where("status", "in", ["approved_awaiting_payment_submission", "payment_submitted_under_review", "payment_confirmed", "payment_rejected", "domain_selection", "final_phase"]).get(),
-        competitorsRef.where("status", "in", ["approved_awaiting_payment_submission", "payment_submitted_under_review", "payment_confirmed", "payment_rejected", "domain_selection", "final_phase"]).get(),
+        attendeesRef.where("status", "in", ["approved_awaiting_payment_submission", "payment_submitted_under_review", "payment_confirmed", "ticket_confirmed", "payment_rejected", "domain_selection", "final_phase"]).get(),
+        competitorsRef.where("status", "in", ["approved_awaiting_payment_submission", "payment_submitted_under_review", "payment_confirmed", "ticket_confirmed", "payment_rejected", "domain_selection", "final_phase"]).get(),
     ]);
 
     const attendeeRows = attendeeSnapshot.docs.map((doc) => {
@@ -142,7 +144,7 @@ export default async function DashboardPage() {
             <div className="mt-5 border p-5 rounded-lg">
                 <h2 className="text-lg font-semibold mb-2">Payment Stats</h2>
                 <p>Total Payment Submissions: {paymentData.length}</p>
-                <p>Approved Payments: {paymentData.filter((entry) => entry.status === "payment_confirmed").length}</p>
+                <p>Approved Payments: {paymentData.filter((entry) => entry.status === "payment_confirmed" || entry.status === "ticket_confirmed").length}</p>
                 <p>Rejected Payments: {paymentData.filter((entry) => entry.status === "payment_rejected").length}</p>
                 <p>Pending Payment Applications: {paymentData.filter((entry) => entry.status === "approved_awaiting_payment_submission" || entry.status === "payment_submitted_under_review").length}</p>
             </div>

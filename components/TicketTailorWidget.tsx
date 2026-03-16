@@ -1,10 +1,18 @@
 "use client";
 
-export function TicketTailorWidget() {
+type TicketTailorWidgetProps = {
+  email?: string;
+};
+
+export function TicketTailorWidget({ email }: TicketTailorWidgetProps) {
+  const baseUrl =
+    "https://www.tickettailor.com/all-tickets/medhackglobal/?ref=website_widget&show_search_filter=true&show_date_filter=true&show_sort=true";
+  const src = email ? `${baseUrl}&preset_data=1#p[email]=${encodeURIComponent(email)}` : baseUrl;
+
   return (
     <div className="tt-widget w-full flex justify-center">
       <iframe
-        src="https://www.tickettailor.com/all-tickets/medhackglobal/?ref=website_widget&show_search_filter=true&show_date_filter=true&show_sort=true"
+        src={src}
         title="Ticket Tailor Widget"
         width="100%"
         height="600"
