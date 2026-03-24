@@ -40,7 +40,7 @@ export const paymentColumns: ColumnDef<PaymentSubmission>[] = [
     cell: ({ row }) => {
       const status = row.getValue("status") as string;
       const normalized =
-        status === "payment_confirmed" || status === "final_phase" || status === "domain_selection"
+        status === "payment_confirmed" || status === "ticket_confirmed" || status === "final_phase" || status === "domain_selection"
           ? "Approved"
           : status === "payment_rejected"
             ? "Rejected"

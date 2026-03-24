@@ -53,8 +53,20 @@ export async function POST(req: NextRequest) {
     const docSnap = await docRef.get();
     const data = docSnap.data() || {};
 
-    if (status === "domain_selection") {
-      const major = data.major;
+    // check if user is Engineer or Healthcare/Medicine
+    const major = data.major;
+    if (major !== "Engineering" && major !== "Medicine" && major !== "Healthcare") {
+      return NextResponse.json({ error: "You are not eligible for this action" }, { status: 400 });
+    }
+
+    const currentStatus = String(data.status || data.workflowStatus || "").toLowerCase();
+
+    // need to recheck the currentStatus !== domain_selection.
+    if (major === "Engineering" && currentStatus !== "ticket_confirmed") {
+      return NextResponse.json({ error: "Ticket not confirmed yet for Engineering student" }, { status: 403 });
+    }
+
+    if (currentStatus === "domain_selection") {
       if (major !== "Medicine" && major !== "Healthcare") {
         return NextResponse.json({ error: "Domain selection is only available for Medicine/Healthcare" }, { status: 400 });
       }

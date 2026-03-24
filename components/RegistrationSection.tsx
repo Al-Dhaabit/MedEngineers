@@ -4,6 +4,7 @@ import { useEffect, useCallback, useReducer, type FormEvent, useState } from "re
 import { CustomApplicationForm } from "./CustomApplicationForm";
 import { auth } from "@/lib/Firebase";
 import { Button } from "@/components/ui/button";
+import { TicketTailorWidget } from "./TicketTailorWidget";
 import { retrieveFormData, hasValidStoredData, clearStoredData } from "@/lib/secureStorage";
 import { useAuth } from "@/lib/AuthContext";
 import { useRegistrationStore, type workFlowStatus } from "@/lib/registrationStore";
@@ -36,6 +37,12 @@ export function RegistrationSection() {
     paymentProofError: string | null;
     isSubmittingPaymentProof: boolean;
     isDismissingPayment: boolean;
+    isCheckingTicket: boolean;
+    ticketCheckError: string | null;
+    ticketCheckSuccess: string | null;
+    isFetchingTicketInfo: boolean;
+    ticketInfoError: string | null;
+    ticketInfo: { orderId?: string; ticketCode?: string } | null;
     selectedDomain: string | null;
     expandedDomain: string | null;
     isUpdatingDomain: boolean;
@@ -56,6 +63,12 @@ export function RegistrationSection() {
       paymentProofError: null,
       isSubmittingPaymentProof: false,
       isDismissingPayment: false,
+      isCheckingTicket: false,
+      ticketCheckError: null,
+      ticketCheckSuccess: null,
+      isFetchingTicketInfo: false,
+      ticketInfoError: null,
+      ticketInfo: null,
       selectedDomain: null,
       expandedDomain: null,
       isUpdatingDomain: false,
@@ -75,6 +88,8 @@ export function RegistrationSection() {
     status === "rejected_awaiting_payment_submission" ||
     status === "payment_rejected";
   const isPaymentUnderReview = status === "payment_submitted_under_review";
+  const isTicketPhase = status === "payment_confirmed" || status === "ticket_confirmed";
+  const isTicketConfirmed = status === "ticket_confirmed";
 
   useEffect(() => {
     if (status === "domain_selection") {
@@ -109,7 +124,7 @@ export function RegistrationSection() {
       if (!options?.silent) {
         updateUi({ isCheckingStatus: true });
       }
-      console.log(`Checking status for UID: ${authUser.uid} (Attempt ${retryCount + 1})`);
+      // console.log(`Checking status for UID: ${authUser.uid} (Attempt ${retryCount + 1})`);
 
       // Get fresh ID token for authentication
       const idToken = await authUser.getIdToken();
@@ -186,6 +201,31 @@ export function RegistrationSection() {
       }
     }
   }, [ui.hasCheckedStatus, setStatus, setUser, updateUi]);
+
+  useEffect(() => {
+    if (!auth.currentUser) return;
+    if (!isTicketPhase || isTicketConfirmed) return;
+
+    let cancelled = false;
+    const poll = async () => {
+      if (cancelled || !auth.currentUser) return;
+      await checkUserStatus(auth.currentUser, 0, { silent: true });
+    };
+
+    poll();
+    const intervalId = window.setInterval(poll, 8000);
+
+    const handleVisibility = () => {
+      if (!document.hidden) poll();
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [checkUserStatus, isTicketPhase, isTicketConfirmed]);
 
   // Auth Listener (synchronizes with AuthContext)
   useEffect(() => {
@@ -343,7 +383,6 @@ export function RegistrationSection() {
 
     } catch (error: any) {
       console.error("Domain update failed:", error);
-      alert("Failed to confirm domain: " + error.message);
       updateUi({ isDomainConfirmed: false, isDomainSubmitted: false }); // Show grid again if failed
     } finally {
       updateUi({ isUpdatingDomain: false });
@@ -371,7 +410,6 @@ export function RegistrationSection() {
       transition("DOMAIN_CONFIRMED");
     } catch (error: any) {
       console.error("Final phase update failed:", error);
-      alert("Failed to continue: " + error.message);
     } finally {
       updateUi({ isUpdatingDomain: false });
     }
@@ -407,6 +445,63 @@ export function RegistrationSection() {
       updateUi({ isDismissingPayment: false });
     }
   }, [userZustand?.major, transition, updateUi]);
+
+  // Check ticket status (Check my ticket)
+  const handleCheckTicket = useCallback(async () => {
+    try {
+      updateUi({ isCheckingTicket: true, ticketCheckError: null, ticketCheckSuccess: null });
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) throw new Error("Authentication token missing");
+
+      const res = await fetch("/api/ticket-tailor/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Ticket verification failed");
+      }
+
+      updateUi({ ticketCheckSuccess: "Ticket confirmed. You can continue now." });
+      if (auth.currentUser) {
+        await checkUserStatus(auth.currentUser, 0, { silent: true });
+      }
+    } catch (error: any) {
+      console.error("Ticket verification failed:", error);
+      updateUi({ ticketCheckError: error.message || "Ticket verification failed" });
+    } finally {
+      updateUi({ isCheckingTicket: false });
+    }
+  }, [checkUserStatus, updateUi]);
+
+  // Get ticket info using button in final phase in summary section
+  const handleGetTicketInfo = useCallback(async () => {
+    try {
+      updateUi({ isFetchingTicketInfo: true, ticketInfoError: null, ticketInfo: null });
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) throw new Error("Authentication token missing");
+
+      const res = await fetch("/api/ticket-tailor/get-ticket", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to fetch ticket info");
+      }
+
+      const data = await res.json();
+      updateUi({ ticketInfo: { orderId: data.orderId, ticketCode: data.ticketCode } });
+    } catch (error: any) {
+      updateUi({ ticketInfoError: error.message || "Failed to fetch ticket info" });
+    } finally {
+      updateUi({ isFetchingTicketInfo: false });
+    }
+  }, [updateUi]);
 
   // Handle logout
   const handleLogout = async () => {
@@ -471,6 +566,7 @@ export function RegistrationSection() {
               "payment_submitted_under_review",
               "payment_rejected",
               "payment_confirmed",
+              "ticket_confirmed",
               "domain_selection",
               "final_phase",
             ] as workFlowStatus[]).map((s) => (
@@ -919,6 +1015,7 @@ export function RegistrationSection() {
                       Pending Approval
                     </span>
                   </div>
+
                 </div>
               </div>
             )}
@@ -948,10 +1045,10 @@ export function RegistrationSection() {
           </div>
         )}
 
-        {/* 5. PAYMENT SUCCESS VIEW */}
-        {status === "payment_confirmed" && (
+        {/* 5. PAYMENT SUCCESS & TICKET TAILOR VIEW */}
+        {isTicketPhase && (
           <div className="animate-in fade-in zoom-in-95 duration-700">
-            <div className="mx-auto max-w-2xl text-center py-12">
+            <div className="mx-auto max-w-3xl text-center py-12">
               <div className="mb-8 flex justify-center">
                 <div className="relative">
                   <div className="absolute inset-0 bg-green-500 blur-2xl opacity-20 animate-pulse rounded-full" />
@@ -966,24 +1063,64 @@ export function RegistrationSection() {
               <h2 className="text-4xl sm:text-6xl font-black tracking-[-0.05em] uppercase text-green-500 mb-4">
                 Payment Successful
               </h2>
-              <p className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-2xl mb-2">
+              <p className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-2xl mb-6">
                 Your spot is secured!
               </p>
+
               <p className="text-lg text-zinc-600 dark:text-zinc-400 max-w-md mx-auto mb-8">
-                Your payment was processed successfully. We&apos;ve sent a confirmation email with your ticket details.
+                Buy your ticket below. Once confirmed, you can proceed to the next phase.
               </p>
 
-              <Button
-                onClick={handleDismissPaymentSuccess}
-                disabled={ui.isDismissingPayment}
-                className="bg-green-600 hover:bg-green-700 disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold py-3 px-12 rounded-full shadow-lg transition-all hover:scale-105"
-              >
-                {ui.isDismissingPayment
-                  ? "Continuing..."
-                  : (userZustand?.major === "Medicine" || userZustand?.major === "Healthcare")
-                    ? "Select Your Domain"
-                    : "Go to Final Phase"}
-              </Button>
+              <div className="mt-6 mb-8">
+                {isTicketConfirmed ? (
+                  <div className="bg-emerald-500/10 border border-emerald-400/40 rounded-2xl p-6 text-emerald-200 shadow-lg">
+                    <div className="text-lg font-black uppercase tracking-wider opacity-90">Ticket bought successfully</div>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-lg text-zinc-600 dark:text-zinc-400 max-w-md mx-auto mb-8">
+                      <span className="font-bold text-red-500">IMPORTANT:</span> MAKE SURE TO USE THE SAME GOOGLE EMAIL YOU REGISTERED WITH
+                    </p>
+
+                    <h3 className="text-2xl sm:text-3xl font-black tracking-tight text-white mb-6 text-center">
+                      Get your ticket
+                    </h3>
+                    <TicketTailorWidget email={uiEmail} />
+                  </>
+                )}
+              </div>
+
+              <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
+                <Button
+                  onClick={handleCheckTicket}
+                  disabled={ui.isCheckingTicket || isTicketConfirmed}
+                  className="bg-[#007b8a] hover:bg-[#00606d] disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold py-3 px-10 rounded-full shadow-lg transition-all hover:scale-105"
+                >
+                  {ui.isCheckingTicket ? "Checking..." : "Check My Ticket"}
+                </Button>
+                <Button
+                  onClick={handleDismissPaymentSuccess}
+                  disabled={ui.isDismissingPayment || !isTicketConfirmed}
+                  className="bg-green-600 hover:bg-green-700 disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold py-3 px-10 rounded-full shadow-lg transition-all hover:scale-105"
+                >
+                  {ui.isDismissingPayment
+                    ? "Continuing..."
+                    : (userZustand?.major === "Medicine" || userZustand?.major === "Healthcare")
+                      ? "Select Your Domain"
+                      : "Go to Final Phase"}
+                </Button>
+              </div>
+              {ui.ticketCheckError && (
+                <p className="mt-4 text-sm text-red-400">{ui.ticketCheckError}</p>
+              )}
+              {ui.ticketCheckSuccess && (
+                <p className="mt-4 text-sm text-emerald-400">{ui.ticketCheckSuccess}</p>
+              )}
+              {!isTicketConfirmed && (
+                <p className="mt-4 text-xs text-zinc-500">
+                  The continue button unlocks after your ticket is confirmed.
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -1226,14 +1363,35 @@ export function RegistrationSection() {
                   <h3 className="text-sm font-bold uppercase tracking-wider text-[#007b8a] mb-4">
                     Application Summary
                   </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-zinc-700 dark:text-zinc-300">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-zinc-700 dark:text-zinc-300">
                     <div><span className="font-semibold">Name:</span> {uiDisplayName || "N/A"}</div>
                     <div><span className="font-semibold">Email:</span> {uiEmail || "N/A"}</div>
                     <div><span className="font-semibold">Year:</span> {userZustand.year || "N/A"}</div>
                     <div><span className="font-semibold">Major:</span> {userZustand.major || "N/A"}</div>
                     <div><span className="font-semibold">Major Type:</span> {userZustand.majorType || "N/A"}</div>
                     <div><span className="font-semibold">Domain:</span> {userZustand.domain || "N/A"}</div>
+
+                    {/* Button to check user ticket */}
+                    <div>
+                      <Button
+                        onClick={handleGetTicketInfo}
+                        disabled={ui.isCheckingTicket || isTicketConfirmed}
+                        className="mt-2 bg-[#007b8a] hover:bg-[#00606d] disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold py-3 px-10 rounded-full shadow-lg transition-all hover:scale-105"
+                      >
+                        {ui.isCheckingTicket ? "Checking..." : "Check My Ticket"}
+                      </Button></div>
                   </div>
+                  {ui.ticketInfo && (
+                    <div className="mt-4 flex flex-col gap-3">
+                      <div><span className="font-semibold">Order ID:</span> {ui.ticketInfo.orderId || "N/A"}</div>
+                      <div><span className="font-semibold">Ticket Code:</span> {ui.ticketInfo.ticketCode || "N/A"}</div>
+                    </div>
+                  )}
+                  {ui.ticketInfoError && (
+                    <div className="mt-4 flex flex-col gap-3">
+                      {ui.ticketInfoError}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1246,7 +1404,7 @@ export function RegistrationSection() {
               </div>
 
               {/* Reworked Timer */}
-              <div className="mb-12"> 
+              <div className="mb-12">
                 <CountdownTimer targetDate="2026-05-23T09:00:00" />
               </div>
 

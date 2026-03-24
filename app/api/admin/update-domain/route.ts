@@ -4,6 +4,10 @@ import { verifyAdminSession } from "@/lib/adminAuth";
 import admin from "firebase-admin";
 import { logger } from "@/lib/logger";
 
+// -----------------------------------------------------------
+// Purpose: Admin sets the domain for the Engineering students 
+// -----------------------------------------------------------
+
 const DOMAIN_NAMES: Record<"A" | "B" | "C", string> = {
     A: "Medical Tools & Hardware",
     B: "Clinical Systems & Operations",

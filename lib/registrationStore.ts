@@ -12,6 +12,7 @@ export type workFlowStatus =
   | "payment_submitted_under_review"
   | "payment_rejected"
   | "payment_confirmed"
+  | "ticket_confirmed"
   | "domain_selection"
   | "final_phase";
 
@@ -82,12 +83,13 @@ const transitionTable: Record<workFlowStatus, Partial<Record<RegistrationEvent, 
     PAYMENT_PROOF_RESUBMITTED: "payment_submitted_under_review",
   },
 
-  // After payment is confirmed, route based on user's major
-  payment_confirmed: {
+  payment_confirmed: {},
+
+  ticket_confirmed: {
     DISMISS_PAYMENT_SUCCESS: (user) => {
       if (user?.major === "Engineering") return "final_phase";
-      else if (user?.major === "Medicine" || user?.major === "Healthcare") return "domain_selection";
-      return "final_phase"; // fallback
+      if (user?.major === "Medicine" || user?.major === "Healthcare") return "domain_selection";
+      return "final_phase";
     }
   },
 

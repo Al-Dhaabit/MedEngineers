@@ -12,6 +12,7 @@ type WorkflowStatus =
     | "payment_submitted_under_review"
     | "payment_rejected"
     | "payment_confirmed"
+    | "ticket_confirmed"
     | "domain_selection"
     | "final_phase";
 
@@ -68,6 +69,8 @@ function normalizeWorkflowStatus(data: Record<string, any>): WorkflowStatus {
         case "payment_success":
         case "payment_confirmed":
             return "payment_confirmed";
+        case "ticket_confirmed":
+            return "ticket_confirmed";
         case "domain_selection":
             return "domain_selection";
         case "final_phase":
@@ -82,7 +85,7 @@ function normalizeWorkflowStatus(data: Record<string, any>): WorkflowStatus {
     if (appDecision === "rejected") return "rejected_awaiting_payment_submission";
     if (appDecision === "pending") return "pending";
 
-    // If payment is approved, return payment_confirmed
+    // If payment is approved, return payment_confirmed (ticket still pending)
     if (paymentStatus === "approved") return "payment_confirmed";
     if (paymentStatus === "rejected") return "payment_rejected";
     if (paymentStatus === "under_review") return "payment_submitted_under_review";
