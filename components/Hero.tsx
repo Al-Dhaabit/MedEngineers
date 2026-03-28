@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/AuthContext";
+import Link from "next/link";
 
 export function Hero() {
   const { signOut } = useAuth();
@@ -89,17 +90,29 @@ export function Hero() {
           </div>
         </h1>
 
-        <div className="mt-10 sm:mt-14 flex flex-col sm:flex-row items-center justify-center gap-5 sm:gap-8 w-full px-4">
-          <a
-            href="#registration"
-            className="group relative px-8 py-2.5 sm:px-10 sm:py-3.5 bg-[#007b8a] text-white font-bold rounded-full overflow-hidden transition-all hover:scale-105 active:scale-95 shadow-[0_0_25px_rgba(0,123,138,0.5)] text-base sm:text-lg w-auto min-w-[200px] sm:min-w-[240px] text-center"
-          >
-            <span className="relative z-10">Register</span>
-            <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-          </a>
+        <div className="mt-10 sm:mt-14 flex flex-col items-center justify-center gap-6 sm:gap-8 w-full px-4 sm:px-0">
+          
+          <div className="flex flex-row items-center justify-center gap-3 sm:gap-8 w-full max-w-[340px] sm:max-w-none">
+            <a
+              href="#registration"
+              className="group relative flex-1 sm:flex-none px-1 sm:px-10 py-3 sm:py-3.5 bg-[#007b8a] text-white font-bold rounded-full overflow-hidden transition-all hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(0,123,138,0.4)] sm:shadow-[0_0_25px_rgba(0,123,138,0.5)] text-sm sm:text-lg sm:min-w-[240px] text-center"
+            >
+              <span className="relative z-10 whitespace-nowrap">Register</span>
+              <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+            </a>
+            
+            <Link
+              href="/agenda"
+              className="group relative flex-1 sm:flex-none px-1 sm:px-10 py-3 sm:py-3.5 bg-white/10 text-white font-bold rounded-full overflow-hidden transition-all hover:scale-105 active:scale-95 border border-white/20 backdrop-blur-md text-sm sm:text-lg sm:min-w-[240px] text-center shadow-lg"
+            >
+              <span className="relative z-10 whitespace-nowrap">View Agenda</span>
+              <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            </Link>
+          </div>
+
           <a
             href="#details"
-            className="text-base sm:text-[15px] font-semibold leading-6 text-white hover:text-[#007b8a] transition-colors flex items-center gap-2 py-2 group"
+            className="text-sm sm:text-[15px] font-semibold leading-6 text-white hover:text-[#007b8a] transition-colors flex items-center gap-2 group"
           >
             Learn more <span className="inline-block transition-transform duration-200 group-hover:translate-x-1.5">→</span>
           </a>

@@ -8,6 +8,7 @@ import { TicketTailorWidget } from "./TicketTailorWidget";
 import { retrieveFormData, hasValidStoredData, clearStoredData } from "@/lib/secureStorage";
 import { useAuth } from "@/lib/AuthContext";
 import { useRegistrationStore, type workFlowStatus } from "@/lib/registrationStore";
+import { User, Mail, GraduationCap, Calendar, Briefcase, Globe, Ticket, ChevronDown } from "lucide-react";
 
 export function RegistrationSection() {
 
@@ -48,6 +49,7 @@ export function RegistrationSection() {
     isUpdatingDomain: boolean;
     isDomainConfirmed: boolean;
     isDomainSubmitted: boolean;
+    isTicketPanelOpen: boolean;
   };
 
   // UI State: using this instead of 15 different useState hooks
@@ -74,6 +76,7 @@ export function RegistrationSection() {
       isUpdatingDomain: false,
       isDomainConfirmed: false,
       isDomainSubmitted: false,
+      isTicketPanelOpen: false,
     }
   );
 
@@ -1359,39 +1362,128 @@ export function RegistrationSection() {
 
               {/* Application Summary */}
               {userZustand && (
-                <div className="mb-12 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/40 p-6 text-left">
-                  <h3 className="text-sm font-bold uppercase tracking-wider text-[#007b8a] mb-4">
-                    Application Summary
-                  </h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-zinc-700 dark:text-zinc-300">
-                    <div><span className="font-semibold">Name:</span> {uiDisplayName || "N/A"}</div>
-                    <div><span className="font-semibold">Email:</span> {uiEmail || "N/A"}</div>
-                    <div><span className="font-semibold">Year:</span> {userZustand.year || "N/A"}</div>
-                    <div><span className="font-semibold">Major:</span> {userZustand.major || "N/A"}</div>
-                    <div><span className="font-semibold">Major Type:</span> {userZustand.majorType || "N/A"}</div>
-                    <div><span className="font-semibold">Domain:</span> {userZustand.domain || "N/A"}</div>
+                <div className="mb-16 relative overflow-hidden rounded-2xl sm:rounded-[2.5rem] border border-white/10 bg-zinc-950 p-5 sm:p-10 shadow-2xl backdrop-blur-xl text-left group">
+                  {/* Subtle Gradient Backdrops */}
+                  <div className="absolute -top-32 -right-32 w-96 h-96 bg-[#007b8a]/8 rounded-full blur-[120px] pointer-events-none group-hover:bg-[#007b8a]/12 transition-all duration-700" />
+                  <div className="absolute -bottom-32 -left-32 w-96 h-96 bg-teal-500/5 rounded-full blur-[120px] pointer-events-none" />
 
-                    {/* Button to check user ticket */}
-                    <div>
-                      <Button
-                        onClick={handleGetTicketInfo}
-                        disabled={ui.isCheckingTicket || isTicketConfirmed}
-                        className="mt-2 bg-[#007b8a] hover:bg-[#00606d] disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold py-3 px-10 rounded-full shadow-lg transition-all hover:scale-105"
-                      >
-                        {ui.isCheckingTicket ? "Checking..." : "Check My Ticket"}
-                      </Button></div>
+                  <div className="relative flex flex-col gap-3 mb-6 sm:mb-10 border-b border-white/5 pb-5 sm:pb-8 z-10">
+                    <h3 className="text-lg sm:text-2xl font-black uppercase tracking-widest text-white flex items-center gap-2 sm:gap-3">
+                      <User className="w-5 h-5 sm:w-6 sm:h-6 text-teal-500 shrink-0" />
+                      Application Summary
+                    </h3>
+                    <p className="text-zinc-500 text-xs sm:text-sm font-medium hidden sm:block">Verify your registered details and ticket statuses below.</p>
                   </div>
-                  {ui.ticketInfo && (
-                    <div className="mt-4 flex flex-col gap-3">
-                      <div><span className="font-semibold">Order ID:</span> {ui.ticketInfo.orderId || "N/A"}</div>
-                      <div><span className="font-semibold">Ticket Code:</span> {ui.ticketInfo.ticketCode || "N/A"}</div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-2 gap-3 sm:gap-6 relative z-10">
+                    <div className="flex items-center gap-3 sm:gap-4 bg-white/[0.02] border border-white/5 p-3 sm:p-5 rounded-xl sm:rounded-2xl hover:bg-white/[0.04] transition-colors">
+                      <div className="p-2.5 sm:p-4 bg-white/5 rounded-lg sm:rounded-xl text-zinc-400">
+                        <User className="w-4 h-4 sm:w-6 sm:h-6" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[9px] sm:text-xs uppercase tracking-wider text-zinc-500 font-bold mb-0.5 sm:mb-1">Name</p>
+                        <p className="text-xs sm:text-base text-zinc-200 font-semibold truncate">{uiDisplayName || "N/A"}</p>
+                      </div>
                     </div>
-                  )}
-                  {ui.ticketInfoError && (
-                    <div className="mt-4 flex flex-col gap-3">
-                      {ui.ticketInfoError}
+                    
+                    <div className="flex items-center gap-3 sm:gap-4 bg-white/[0.02] border border-white/5 p-3 sm:p-5 rounded-xl sm:rounded-2xl hover:bg-white/[0.04] transition-colors">
+                      <div className="p-2.5 sm:p-4 bg-white/5 rounded-lg sm:rounded-xl text-zinc-400">
+                        <Mail className="w-4 h-4 sm:w-6 sm:h-6" />
+                      </div>
+                      <div className="min-w-0 overflow-hidden">
+                        <p className="text-[9px] sm:text-xs uppercase tracking-wider text-zinc-500 font-bold mb-0.5 sm:mb-1">Email</p>
+                        <p className="text-xs sm:text-base text-zinc-200 font-semibold truncate">{uiEmail || "N/A"}</p>
+                      </div>
                     </div>
-                  )}
+
+                    <div className="flex items-center gap-3 sm:gap-4 bg-white/[0.02] border border-white/5 p-3 sm:p-5 rounded-xl sm:rounded-2xl hover:bg-white/[0.04] transition-colors">
+                      <div className="p-2.5 sm:p-4 bg-white/5 rounded-lg sm:rounded-xl text-zinc-400">
+                        <GraduationCap className="w-4 h-4 sm:w-6 sm:h-6" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[9px] sm:text-xs uppercase tracking-wider text-zinc-500 font-bold mb-0.5 sm:mb-1">Major</p>
+                        <p className="text-xs sm:text-base text-zinc-200 font-semibold truncate">{userZustand.major || "N/A"}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 sm:gap-4 bg-white/[0.02] border border-white/5 p-3 sm:p-5 rounded-xl sm:rounded-2xl hover:bg-white/[0.04] transition-colors">
+                      <div className="p-2.5 sm:p-4 bg-white/5 rounded-lg sm:rounded-xl text-zinc-400">
+                        <Calendar className="w-4 h-4 sm:w-6 sm:h-6" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[9px] sm:text-xs uppercase tracking-wider text-zinc-500 font-bold mb-0.5 sm:mb-1">Year</p>
+                        <p className="text-xs sm:text-base text-zinc-200 font-semibold truncate">{userZustand.year || "N/A"}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 sm:gap-4 bg-white/[0.02] border border-white/5 p-3 sm:p-5 rounded-xl sm:rounded-2xl hover:bg-white/[0.04] transition-colors">
+                      <div className="p-2.5 sm:p-4 bg-white/5 rounded-lg sm:rounded-xl text-zinc-400">
+                        <Briefcase className="w-4 h-4 sm:w-6 sm:h-6" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[9px] sm:text-xs uppercase tracking-wider text-zinc-500 font-bold mb-0.5 sm:mb-1">Specialization</p>
+                        <p className="text-xs sm:text-base text-zinc-200 font-semibold truncate">{userZustand.majorType || "N/A"}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 sm:gap-4 bg-[#007b8a]/10 border border-[#007b8a]/20 p-3 sm:p-5 rounded-xl sm:rounded-2xl shadow-[inset_0_0_20px_rgba(0,123,138,0.1)]">
+                      <div className="p-2.5 sm:p-4 bg-[#007b8a]/20 rounded-lg sm:rounded-xl text-teal-400 shadow-[0_0_15px_rgba(0,123,138,0.3)]">
+                        <Globe className="w-4 h-4 sm:w-6 sm:h-6" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-[9px] sm:text-xs uppercase tracking-wider text-teal-500/80 font-bold mb-0.5 sm:mb-1">Domain</p>
+                        <p className="text-xs sm:text-base text-teal-300 font-bold truncate">{userZustand.domain || "N/A"}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Ticket Info - native details/summary */}
+                  <details 
+                    className="mt-6 sm:mt-8 relative z-10 group/details"
+                    onToggle={(e) => {
+                      const open = (e.target as HTMLDetailsElement).open;
+                      updateUi({ isTicketPanelOpen: open });
+                      if (open && !ui.ticketInfo && !ui.ticketInfoError) {
+                        handleGetTicketInfo();
+                      }
+                    }}
+                  >
+                    <summary className="flex items-center gap-1.5 text-zinc-500 hover:text-teal-400 transition-colors text-[11px] sm:text-xs font-semibold tracking-wider uppercase cursor-pointer list-none [&::-webkit-details-marker]:hidden select-none">
+                      <Ticket className="w-3.5 h-3.5" />
+                      More Details
+                      <ChevronDown className="w-3.5 h-3.5 transition-transform duration-300" style={{ transform: ui.isTicketPanelOpen ? 'rotate(180deg)' : 'rotate(0deg)' }} />
+                    </summary>
+                    <div className="mt-4 animate-in fade-in duration-300">
+                      {ui.isFetchingTicketInfo && (
+                        <div className="flex items-center justify-center gap-3 p-5 rounded-2xl bg-white/[0.02] border border-white/5">
+                          <div className="w-4 h-4 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
+                          <span className="text-zinc-400 text-sm font-medium">Fetching ticket details...</span>
+                        </div>
+                      )}
+
+                      {ui.ticketInfo && (
+                        <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-5 p-4 sm:p-6 rounded-xl sm:rounded-[1.5rem] bg-teal-500/10 border border-teal-500/20">
+                          <div className="p-3 sm:p-4 bg-teal-500/20 rounded-xl text-teal-400">
+                            <Ticket className="w-6 h-6 sm:w-8 sm:h-8" />
+                          </div>
+                          <div className="flex flex-col text-center sm:text-left">
+                            <p className="text-[10px] sm:text-[11px] uppercase tracking-widest text-teal-500/90 font-bold mb-1.5">Confirmed Ticket</p>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-6">
+                              <span className="text-teal-300 font-medium text-xs sm:text-sm">Order: <strong className="text-teal-100 tracking-widest ml-1">{ui.ticketInfo.orderId || "N/A"}</strong></span>
+                              <span className="hidden sm:block text-teal-500/50">|</span>
+                              <span className="text-teal-300 font-medium text-xs sm:text-sm">Code: <strong className="text-teal-100 tracking-widest ml-1">{ui.ticketInfo.ticketCode || "N/A"}</strong></span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {ui.ticketInfoError && (
+                        <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 font-medium text-sm flex items-center justify-center">
+                          {ui.ticketInfoError}
+                        </div>
+                      )}
+                    </div>
+                  </details>
                 </div>
               )}
 
