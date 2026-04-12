@@ -982,6 +982,13 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
     const isQuestionVisible = (index: number): boolean => {
         if (!formData) return true;
 
+        const question = formData.questions[index];
+        
+        // Hide team selection dropdowns as users are automatically assigned via their email.
+        if (question && question.label.toLowerCase().includes("team")) {
+            return false;
+        }
+
         // Find the major question index
         const majorQuestionIndex = formData.questions.findIndex(q =>
             MAJOR_QUESTION_KEYWORDS.some(kw => q.label.toLowerCase().includes(kw))
