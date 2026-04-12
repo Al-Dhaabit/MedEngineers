@@ -985,9 +985,57 @@ function AgendaPageInner() {
 
       {/* Dev Role Switcher */}
       <DevRoleSwitcher currentRole={currentRole} onRoleChange={handleRoleChange} />
+      
+      {/* ─── FULL-SCREEN MAP MODAL (ROOT LEVEL) ─── */}
+      {isMapExpanded && (
+        <div 
+          className="fixed inset-0 z-[9999] flex flex-col items-center bg-black p-4 md:p-10 overflow-y-auto animate-in fade-in zoom-in-95 duration-300"
+          onClick={() => setIsMapExpanded(false)}
+        >
+          {/* Control Bar - Top Right */}
+          <div className="sticky top-0 w-full flex justify-end mb-4 z-[10000] pointer-events-none">
+            <button 
+              className="p-3 bg-white/10 hover:bg-white/20 rounded-full text-white backdrop-blur-md transition-all duration-300 border border-white/10 group pointer-events-auto"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsMapExpanded(false);
+              }}
+            >
+              <X className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" />
+            </button>
+          </div>
+          
+          <div 
+            className="relative w-full h-[60vh] md:h-[70vh] flex items-center justify-center shrink-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Image 
+              src="/images/event_map.jpg" 
+              alt="Expanded University Event Map" 
+              fill
+              className="object-contain drop-shadow-[0_0_50px_rgba(0,123,138,0.3)]"
+              sizes="90vw"
+              priority
+            />
+          </div>
+          
+          {/* Download Button Below Map */}
+          <div className="mt-8 mb-24 flex flex-col items-center gap-4 shrink-0">
+            <a 
+              href="/images/event_map.jpg"
+              download="MedEngineers_Event_Map.jpg"
+              className="flex items-center gap-2 px-8 py-4 bg-[#007b8a] hover:bg-[#008f9f] text-white rounded-full font-bold text-base transition-all duration-300 shadow-2xl shadow-[#007b8a]/40 scale-100 hover:scale-105 active:scale-95"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Download className="w-5 h-5" />
+              Download Map
+            </a>
+          </div>
+        </div>
+      )}
 
       {/* Navigation Back */}
-      <div className="absolute top-6 md:top-10 left-4 md:left-8 lg:left-12 xl:left-16 z-20 animate-in fade-in duration-700">
+      <div className={`absolute top-6 md:top-10 left-4 md:left-8 lg:left-12 xl:left-16 z-20 animate-in fade-in duration-700 transition-opacity ${isMapExpanded ? "opacity-0 pointer-events-none" : "opacity-100"}`}>
         <Link 
           href="/"
           className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors border border-white/10 bg-white/5 backdrop-blur-md px-4 py-2 rounded-full hover:bg-white/10 text-sm font-semibold"
@@ -1084,57 +1132,6 @@ function AgendaPageInner() {
             </div>
           </div>
         </div>
-
-        {/* ─── FULL-SCREEN MAP MODAL ─── */}
-        {isMapExpanded && (
-          <div 
-            className="fixed inset-0 z-[999] flex flex-col items-center justify-center bg-black/95 backdrop-blur-2xl p-4 md:p-10 animate-in fade-in zoom-in-95 duration-300"
-            onClick={() => setIsMapExpanded(false)}
-          >
-            {/* Control Bar */}
-            <div className="absolute top-6 left-6 z-[1000]">
-              <button 
-                className="p-3 bg-white/10 hover:bg-white/20 rounded-full text-white backdrop-blur-md transition-all duration-300 border border-white/10 group"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsMapExpanded(false);
-                }}
-              >
-                <X className="w-6 h-6 group-hover:rotate-90 transition-transform duration-300" />
-              </button>
-            </div>
-            
-            <div 
-              className="relative w-full h-[60vh] md:h-[70vh] flex items-center justify-center"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <Image 
-                src="/images/event_map.jpg" 
-                alt="Expanded University Event Map" 
-                fill
-                className="object-contain drop-shadow-[0_0_50px_rgba(0,123,138,0.3)]"
-                sizes="90vw"
-                priority
-              />
-            </div>
-            
-            {/* Download Button Below Map */}
-            <div className="mt-8 flex flex-col items-center gap-4">
-              <a 
-                href="/images/event_map.jpg"
-                download="MedEngineers_Event_Map.jpg"
-                className="flex items-center gap-2 px-8 py-4 bg-[#007b8a] hover:bg-[#008f9f] text-white rounded-full font-bold text-base transition-all duration-300 shadow-2xl shadow-[#007b8a]/40 scale-100 hover:scale-105 active:scale-95"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Download className="w-5 h-5" />
-                Download Map
-              </a>
-              <div className="text-gray-500 text-[10px] font-bold tracking-[3px] uppercase opacity-40 animate-pulse">
-               
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* ─── HORIZONTAL TIMELINE ─── */}
         <div className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-6 md:p-8 mb-10 animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-300 fill-mode-both">
