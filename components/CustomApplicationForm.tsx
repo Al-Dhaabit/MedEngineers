@@ -89,14 +89,21 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
         "LinkedIn Profile URL (Optional)": {
             title: "Experience & Portfolio",
             description: "",
-            showFor: "Healthcare"
+            // Shared for both tracks
         },
         "The Clinical Efficiency Challenge": {
             title: "The \"Smartness\" Test (Critical Thinking)",
             description: "Choose one of these scenarios to test their ability to apply medical knowledge to innovation.",
             showFor: "Healthcare"
         },
-        // "The Why" is valid for Healthcare too
+        "The \"Why\" (Enthusiasm Check)": {
+            title: "Passion & Purpose",
+            description: "We want to know what drives you to build at the intersection of medicine and engineering.",
+        },
+        "Collaborative Spirit": {
+            title: "Final Thoughts",
+            description: "Almost done! Tell us about how you work with others.",
+        },
     };
 
     // Skip logic configuration: question ranges for each major (1-indexed)
@@ -104,9 +111,9 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
     // Questions before the major question (e.g., 1-6) are always shown
     // NOTE: These indices assume SECTIONS HAVE BEEN REMOVED from Google Forms
     const SKIP_LOGIC: Record<string, { start: number; end: number | null }> = {
-        "Engineering": { start: 8, end: 20 },   // Items 8-19 (Engineering-only questions)
-        "Medicine": { start: 20, end: null },   // Items 20+ (Medicine-only questions) - Maintain legacy support
-        "Healthcare": { start: 20, end: null }, // Items 20+ (Healthcare questions)
+        "Engineering": { start: 8, end: 20 },   // Items 8+ 
+        "Medicine": { start: 20, end: null },    // Items 20+ 
+        "Healthcare": { start: 20, end: null }, // Items 20+ 
     };
 
     // No common ending - both tracks have their own final questions
@@ -279,13 +286,20 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
     const isQuestionRequiredForCurrentForm = (question: FormQuestion, currentFormType: string) => {
         // Competitor flow: all visible questions are required except Technical Toolkit groups LinkedIn URL.
         if (currentFormType === "competitor") {
-            const label = question.label.toLowerCase().trim();
+            const label = question.label.trim();
+            // These medical scenarios are "choose one", so we mark them as not strictly required here
+            // to remove the asterisk, then handle the "at least one" logic in the validator.
+            if (label === "The Clinical Efficiency Challenge" || label === "The Data Paradox") {
+                return false;
+            }
+            
+            const lowLabel = label.toLowerCase();
             const isToolkitGroup =
-                label.startsWith("group 1:") ||
-                label.startsWith("group 2:") ||
-                label.startsWith("group 3:") ||
-                label.startsWith("group 4:");
-            const isLinkedInField = label.includes("linkedin");
+                lowLabel.startsWith("group 1:") ||
+                lowLabel.startsWith("group 2:") ||
+                lowLabel.startsWith("group 3:") ||
+                lowLabel.startsWith("group 4:");
+            const isLinkedInField = lowLabel.includes("linkedin");
 
             if (isToolkitGroup || isLinkedInField) return false;
             return true;
@@ -984,8 +998,9 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
 
         const question = formData.questions[index];
         
-        // Hide team selection dropdowns as users are automatically assigned via their email.
-        if (question && question.label.toLowerCase().includes("team")) {
+        // Hide actual team selection dropdowns, but not the contribution/persona question
+        const lowLabel = question.label.toLowerCase();
+        if (question && lowLabel.includes("team") && (lowLabel.includes("select") || lowLabel.includes("choose your"))) {
             return false;
         }
 
@@ -1006,15 +1021,22 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
         const range = SKIP_LOGIC[selectedMajor];
 
         // If no skip logic defined for this major, show all questions
-        if (!range) return true;
+        if (!range) return false;
 
-        // Questions up to and including the major question are always visible
-        if (index <= majorQuestionIndex) return true;
-
-        // Convert to 1-indexed for comparison with skip logic config
         const questionNumber = index + 1;
+        const q = formData.questions[index];
+        if (!q) return false;
 
-        // Check if question falls within the range for this major
+        // Baseline questions (before the pivot) are always shown
+        if (questionNumber < 8) return true;
+
+        // Explicit major check from FRONTEND_SECTIONS
+        const frontendSection = FRONTEND_SECTIONS[q.label];
+        if (frontendSection?.showFor && frontendSection.showFor !== selectedMajor) {
+            return false;
+        }
+
+        // Apply general range check
         const afterStart = questionNumber >= range.start;
         const beforeEnd = range.end === null || questionNumber < range.end;
 
@@ -1030,31 +1052,47 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
 
         // This useEffect is for *displaying* validation state, not for triggering submission.
         // The submission logic handles its own validation check.
-
         let valid = true;
 
-        // Debug: Track why form is invalid
-        let firstInvalidReason = "";
+        // Helper to check if any medical scenario is answered (for Healthcare track)
+        const medScenarios = formData.questions.filter(q => 
+            q.label === "The Clinical Efficiency Challenge" || q.label === "The Data Paradox"
+        );
+        const anyMedScenarioAnswered = medScenarios.some(q => {
+            const val = responses[q.id];
+            return typeof val === "string" && val.trim().length > 10; // Simple length check
+        });
 
         formData.questions.forEach((q, index) => {
             const visible = isQuestionVisible(index);
 
             // CRITICAL: We only validate VISIBLE questions. 
-            // This ensures that if a user selects "Medicine", the hidden "Engineering" questions 
-            // (which are required but not visible) do NOT block submission.
             if (visible) {
                 const val = responses[q.id];
+                const isRequired = isQuestionRequiredForCurrentForm(q, formType);
+
+                // CROSS-QUESTION VALIDATION: If it's a medical scenario, it's only required if NONE are answered
+                if (q.label === "The Clinical Efficiency Challenge" || q.label === "The Data Paradox") {
+                    if (!anyMedScenarioAnswered) {
+                        valid = false;
+                    }
+                    return; 
+                }
+
+                if (isRequired) {
+                    if (val === undefined || val === "" || (Array.isArray(val) && val.length === 0)) {
+                        valid = false;
+                    }
+                }
+
                 const error = validateQuestion(q, val, formType);
                 if (error) {
                     valid = false;
-                    if (!firstInvalidReason) firstInvalidReason = `Q${index + 1} (${q.label.substring(0, 15)}...): ${error}`;
                 }
             }
         });
 
-        // Debug log: uncomment this to see why the form is invalid
-        console.log(`[Validation] FormType: ${formType}, Major: ${selectedMajor}, Valid: ${valid}, Reason: ${firstInvalidReason || "None"}`);
-
+        console.log(`[Validation] FormType: ${formType}, Major: ${selectedMajor}, Valid: ${valid}`);
         setIsFormValid(valid);
     }, [responses, selectedMajor, formData, formType]);
 
