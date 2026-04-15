@@ -1093,7 +1093,7 @@ export function RegistrationSection() {
                 )}
               </div>
 
-              <div className="mt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
+              <div className={`${isTicketConfirmed ? "mt-6" : "-mt-16 sm:-mt-20"} flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10`}>
                 <Button
                   onClick={handleCheckTicket}
                   disabled={ui.isCheckingTicket || isTicketConfirmed}
