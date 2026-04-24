@@ -47,6 +47,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
             setIsSigningIn(true);
             const provider = new GoogleAuthProvider();
+            // Force Google's account chooser so Safari users can pick among signed-in accounts.
+            provider.setCustomParameters({
+                prompt: "select_account",
+            });
             console.log("Initiating Google Sign-In with Popup");
             await signInWithPopup(auth, provider);
         } catch (error: any) {
