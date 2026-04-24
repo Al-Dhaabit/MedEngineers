@@ -1385,7 +1385,7 @@ export function RegistrationSection() {
                         <p className="text-xs sm:text-base text-zinc-200 font-semibold truncate">{uiDisplayName || "N/A"}</p>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-3 sm:gap-4 bg-white/[0.02] border border-white/5 p-3 sm:p-5 rounded-xl sm:rounded-2xl hover:bg-white/[0.04] transition-colors">
                       <div className="p-2.5 sm:p-4 bg-white/5 rounded-lg sm:rounded-xl text-zinc-400">
                         <Mail className="w-4 h-4 sm:w-6 sm:h-6" />
@@ -1438,7 +1438,7 @@ export function RegistrationSection() {
                   </div>
 
                   {/* Ticket Info - native details/summary */}
-                  <details 
+                  <details
                     className="mt-6 sm:mt-8 relative z-10 group/details"
                     onToggle={(e) => {
                       const open = (e.target as HTMLDetailsElement).open;

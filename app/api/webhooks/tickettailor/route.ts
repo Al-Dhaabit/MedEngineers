@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminDb, adminAuth } from "@/lib/firebaseAdmin";
 import crypto from "crypto";
 
+// ----------------------------------------------------------------------
+// This is a WEBHOOK that is used to fetch order_id and ticket_code from ticket tailor
+// when the user books ticket from ticket tailor and redirected to our site
+// ----------------------------------------------------------------------
+
 export async function POST(req: NextRequest) {
     try {
         const bodyText = await req.text();

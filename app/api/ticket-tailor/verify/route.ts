@@ -2,6 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
 import admin from "firebase-admin";
 
+// ----------------------------------------------------------------------
+// This file is used to fetch order_id and ticket_code from ticket tailor
+// when the user books ticket from ticket tailor and redirected to our site
+// There is button that checks the issued tickets from ticket tailor
+// ----------------------------------------------------------------------
+
 type TargetCollection = "attendees" | "competitors";
 
 async function findUserCollection(uid: string): Promise<TargetCollection | null> {
