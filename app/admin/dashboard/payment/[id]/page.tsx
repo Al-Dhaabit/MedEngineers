@@ -66,10 +66,10 @@ export default async function PaymentDetailPage({
             typeof paymentUser.paymentSuccessful === "boolean"
               ? paymentUser.paymentSuccessful
               : paymentUser.isPaid === true
-              ? true
-              : paymentUser.isPayed === true
-              ? true
-              : undefined
+                ? true
+                : paymentUser.isPayed === true
+                  ? true
+                  : undefined
           }
         />
 
@@ -96,6 +96,12 @@ export default async function PaymentDetailPage({
               <div className="border-b border-gray-200 pb-3">
                 <h4 className="font-medium text-gray-600 mb-1">Transaction ID</h4>
                 <p className="text-gray-900 break-words">{paymentUser.transactionID || "N/A"}</p>
+              </div>
+              <div className="border-b border-gray-200 pb-3">
+                <h4 className="font-medium text-gray-600 mb-1">isAmbassador</h4>
+                <p className="text-gray-900 break-words">
+                  {typeof paymentUser.isAmbassador === "boolean" ? (paymentUser.isAmbassador ? "True" : "False") : "N/A"}
+                </p>
               </div>
               <div className="border-b border-gray-200 pb-3 md:col-span-2">
                 <h4 className="font-medium text-gray-600 mb-1">Uploaded Payment Proof</h4>

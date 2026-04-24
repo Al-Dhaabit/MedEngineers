@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
 
+// ----------------------------------------------------------------
+// This file is used to get the ticket code and order id for a user
+// when in the profile page (Final Phase)
+// ----------------------------------------------------------------
+
+
 type TargetCollection = "attendees" | "competitors";
 
 async function findUserCollection(uid: string): Promise<TargetCollection | null> {

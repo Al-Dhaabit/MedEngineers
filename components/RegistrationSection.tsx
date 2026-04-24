@@ -333,6 +333,7 @@ export function RegistrationSection() {
       const payload = new FormData();
       payload.append("idToken", idToken);
       payload.append("transactionID", ui.transactionID.trim());
+      payload.append("isAmbassador", String(ui.isAmbassador === true));
       payload.append("paymentProof", ui.paymentProofFile);
 
       const res = await fetch("/api/payment/submit-proof", {
@@ -937,211 +938,211 @@ export function RegistrationSection() {
 
             {/* Only show payment details after ambassador question is answered (for approved), or always for rejected/payment_rejected */}
             {(status !== "approved_awaiting_payment_submission" || ui.isAmbassador !== null) && (
-            <div className="mx-auto max-w-3xl px-4 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-700">
-              <div className="bg-[#18181b] rounded-2xl shadow-2xl border border-zinc-800/80 overflow-hidden">
+              <div className="mx-auto max-w-3xl px-4 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                <div className="bg-[#18181b] rounded-2xl shadow-2xl border border-zinc-800/80 overflow-hidden">
 
-                {/* Unified Header */}
-                <div className="bg-gradient-to-r from-[#005a65] via-[#007b8a] to-[#005a65] px-6 py-5 flex items-center justify-center">
-                  <h3 className="text-white font-bold text-lg tracking-wide uppercase">Complete Your Payment</h3>
-                </div>
+                  {/* Unified Header */}
+                  <div className="bg-gradient-to-r from-[#005a65] via-[#007b8a] to-[#005a65] px-6 py-5 flex items-center justify-center">
+                    <h3 className="text-white font-bold text-lg tracking-wide uppercase">Complete Your Payment</h3>
+                  </div>
 
-                <div className="p-6 sm:p-10 space-y-10">
+                  <div className="p-6 sm:p-10 space-y-10">
 
-                  {/* Pricing Info Banner — integrated inside the card */}
-                  {status === "approved_awaiting_payment_submission" && ui.isAmbassador !== null && (
-                    <div className={`rounded-xl p-5 border ${ui.isAmbassador ? 'bg-amber-500/5 border-amber-500/20' : 'bg-[#002f35]/40 border-[#007b8a]/20'}`}>
-                      <div className="flex items-start gap-3">
-                        <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${ui.isAmbassador ? 'bg-amber-500/20 border border-amber-500/30' : 'bg-[#007b8a]/20 border border-[#007b8a]/30'}`}>
-                          {ui.isAmbassador ? (
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4.5 h-4.5 text-amber-400">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z" />
-                            </svg>
-                          ) : (
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4.5 h-4.5 text-[#00a8bd]">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
-                            </svg>
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          {ui.isAmbassador ? (
-                            <p className="text-sm text-zinc-300 leading-relaxed">
-                              As a MedHack Ambassador, you are eligible for the special registration price of <span className="font-bold text-amber-400">70 AED</span>. Please provide your transaction details below to confirm your payment at this discounted rate.
-                            </p>
-                          ) : (
-                            <p className="text-sm text-zinc-300 leading-relaxed">
-                              {userZustand?.major === "Engineering" ? (
-                                <>Your registration fee as an Engineering student is <span className="font-bold text-[#00a8bd]">70 AED</span>. Please transfer this amount and submit your proof below.</>
-                              ) : (
-                                <>Your registration fee as a {userZustand?.major || 'Healthcare'} student is <span className="font-bold text-[#00a8bd]">110 AED</span>. Please transfer this amount and submit your proof below.</>
-                              )}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      {/* Amount pill */}
-                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-zinc-800/50">
-                        <span className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Amount to transfer</span>
-                        <span className={`text-2xl font-black ${ui.isAmbassador ? 'text-amber-400' : 'text-[#00a8bd]'}`}>
-                          {ui.isAmbassador ? '70' : userZustand?.major === 'Engineering' ? '70' : '110'} AED
-                        </span>
-                      </div>
-                      {/* Change ambassador answer */}
-                      <button
-                        onClick={() => updateUi({ isAmbassador: null })}
-                        className="mt-3 text-[11px] text-zinc-600 hover:text-zinc-400 transition-colors underline underline-offset-2 block"
-                      >
-                        Change ambassador status
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Step 1: Bank Transfer */}
-                  <div>
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="w-8 h-8 rounded-full bg-[#007b8a] flex items-center justify-center text-white text-sm font-black flex-shrink-0">
-                        1
-                      </div>
-                      <h4 className="text-base font-bold text-zinc-200 uppercase tracking-wider">Transfer to this account</h4>
-                    </div>
-
-                    <div className="border border-zinc-800/80 rounded-xl overflow-hidden bg-[#1f1f22] shadow-inner">
-                      <div className="divide-y divide-zinc-800/60 text-[14px] sm:text-[15px]">
-                        {[
-                          { label: "Account Name", value: "RIT Dubai FZE", isMedium: true },
-                          { label: "Bank Name", value: "Emirates NBD PJSC" },
-                          { label: "Branch", value: "Dubai Silicon Oasis" },
-                          { label: "Account Number", value: "1102425560201", isMono: true, copyable: true },
-                          { label: "SWIFT Code", value: "EBILAEAD", isMono: true, copyable: true },
-                          { label: "IBAN Code", value: "AE390260001102425560201", isMono: true, breakAll: true, copyable: true },
-                        ].map((item, i) => (
-                          <div key={i} className="group grid grid-cols-[140px_1fr] sm:grid-cols-[180px_1fr] items-center hover:bg-zinc-800/30 transition-colors px-4 py-3.5 sm:px-6 sm:py-4">
-                            <div className="font-bold text-zinc-400 uppercase tracking-tight text-[11px] sm:text-xs">
-                              {item.label}
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className={`text-zinc-200 ${item.isMedium ? 'font-medium' : ''} ${item.isMono ? 'font-mono tracking-wider' : ''} ${item.breakAll ? 'break-all' : ''} text-sm sm:text-base`}>
-                                {item.value}
-                              </span>
-                              {item.copyable && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(item.value);
-                                  }}
-                                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-zinc-700/50 text-zinc-500 hover:text-[#00a8bd] flex-shrink-0"
-                                  title={`Copy ${item.label}`}
-                                >
-                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
-                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9.75a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184" />
-                                  </svg>
-                                </button>
-                              )}
-                            </div>
+                    {/* Pricing Info Banner — integrated inside the card */}
+                    {status === "approved_awaiting_payment_submission" && ui.isAmbassador !== null && (
+                      <div className={`rounded-xl p-5 border ${ui.isAmbassador ? 'bg-amber-500/5 border-amber-500/20' : 'bg-[#002f35]/40 border-[#007b8a]/20'}`}>
+                        <div className="flex items-start gap-3">
+                          <div className={`w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 ${ui.isAmbassador ? 'bg-amber-500/20 border border-amber-500/30' : 'bg-[#007b8a]/20 border border-[#007b8a]/30'}`}>
+                            {ui.isAmbassador ? (
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4.5 h-4.5 text-amber-400">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z" />
+                              </svg>
+                            ) : (
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4.5 h-4.5 text-[#00a8bd]">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18.75a60.07 60.07 0 0 1 15.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 0 1 3 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 0 0-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 0 1-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 0 0 3 15h-.75M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Zm3 0h.008v.008H18V10.5Zm-12 0h.008v.008H6V10.5Z" />
+                              </svg>
+                            )}
                           </div>
-                        ))}
+                          <div className="flex-1">
+                            {ui.isAmbassador ? (
+                              <p className="text-sm text-zinc-300 leading-relaxed">
+                                As a MedHack Ambassador, you are eligible for the special registration price of <span className="font-bold text-amber-400">70 AED</span>. Please provide your transaction details below to confirm your payment at this discounted rate.
+                              </p>
+                            ) : (
+                              <p className="text-sm text-zinc-300 leading-relaxed">
+                                {userZustand?.major === "Engineering" ? (
+                                  <>Your registration fee as an Engineering student is <span className="font-bold text-[#00a8bd]">70 AED</span>. Please transfer this amount and submit your proof below.</>
+                                ) : (
+                                  <>Your registration fee as a {userZustand?.major || 'Healthcare'} student is <span className="font-bold text-[#00a8bd]">110 AED</span>. Please transfer this amount and submit your proof below.</>
+                                )}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        {/* Amount pill */}
+                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-zinc-800/50">
+                          <span className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Amount to transfer</span>
+                          <span className={`text-2xl font-black ${ui.isAmbassador ? 'text-amber-400' : 'text-[#00a8bd]'}`}>
+                            {ui.isAmbassador ? '70' : userZustand?.major === 'Engineering' ? '70' : '110'} AED
+                          </span>
+                        </div>
+                        {/* Change ambassador answer */}
+                        <button
+                          onClick={() => updateUi({ isAmbassador: null })}
+                          className="mt-3 text-[11px] text-zinc-600 hover:text-zinc-400 transition-colors underline underline-offset-2 block"
+                        >
+                          Change ambassador status
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Step 1: Bank Transfer */}
+                    <div>
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="w-8 h-8 rounded-full bg-[#007b8a] flex items-center justify-center text-white text-sm font-black flex-shrink-0">
+                          1
+                        </div>
+                        <h4 className="text-base font-bold text-zinc-200 uppercase tracking-wider">Transfer to this account</h4>
+                      </div>
+
+                      <div className="border border-zinc-800/80 rounded-xl overflow-hidden bg-[#1f1f22] shadow-inner">
+                        <div className="divide-y divide-zinc-800/60 text-[14px] sm:text-[15px]">
+                          {[
+                            { label: "Account Name", value: "RIT Dubai FZE", isMedium: true },
+                            { label: "Bank Name", value: "Emirates NBD PJSC" },
+                            { label: "Branch", value: "Dubai Silicon Oasis" },
+                            { label: "Account Number", value: "1102425560201", isMono: true, copyable: true },
+                            { label: "SWIFT Code", value: "EBILAEAD", isMono: true, copyable: true },
+                            { label: "IBAN Code", value: "AE390260001102425560201", isMono: true, breakAll: true, copyable: true },
+                          ].map((item, i) => (
+                            <div key={i} className="group grid grid-cols-[140px_1fr] sm:grid-cols-[180px_1fr] items-center hover:bg-zinc-800/30 transition-colors px-4 py-3.5 sm:px-6 sm:py-4">
+                              <div className="font-bold text-zinc-400 uppercase tracking-tight text-[11px] sm:text-xs">
+                                {item.label}
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className={`text-zinc-200 ${item.isMedium ? 'font-medium' : ''} ${item.isMono ? 'font-mono tracking-wider' : ''} ${item.breakAll ? 'break-all' : ''} text-sm sm:text-base`}>
+                                  {item.value}
+                                </span>
+                                {item.copyable && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(item.value);
+                                    }}
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-zinc-700/50 text-zinc-500 hover:text-[#00a8bd] flex-shrink-0"
+                                    title={`Copy ${item.label}`}
+                                  >
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9.75a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184" />
+                                    </svg>
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Divider */}
-                  <div className="flex items-center gap-4">
-                    <div className="flex-1 h-px bg-zinc-800" />
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-zinc-600">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
-                    </svg>
-                    <div className="flex-1 h-px bg-zinc-800" />
-                  </div>
-
-                  {/* Step 2: Submit Proof */}
-                  <div>
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="w-8 h-8 rounded-full bg-[#007b8a] flex items-center justify-center text-white text-sm font-black flex-shrink-0">
-                        2
-                      </div>
-                      <h4 className="text-base font-bold text-zinc-200 uppercase tracking-wider">Submit your proof</h4>
+                    {/* Divider */}
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1 h-px bg-zinc-800" />
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-zinc-600">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                      </svg>
+                      <div className="flex-1 h-px bg-zinc-800" />
                     </div>
 
-                    <form onSubmit={handlePaymentProofSubmit} className="space-y-6">
-                      <div className="text-left">
-                        <label htmlFor="transaction-id" className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-zinc-300 mb-3 uppercase tracking-wider">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-[#00a8bd]">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.076-4.076a1.526 1.526 0 0 1 1.037-.443 48.282 48.282 0 0 0 5.68-.494c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z" />
-                          </svg>
-                          Transaction ID
-                        </label>
-                        <input
-                          id="transaction-id"
-                          type="text"
-                          value={ui.transactionID}
-                          onChange={(e) => updateUi({ transactionID: e.target.value })}
-                          placeholder="e.g. TXN-2026-XXXXXX"
-                          className="w-full rounded-xl border border-zinc-700/80 bg-zinc-900/80 px-4 py-3.5 text-sm sm:text-base text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#007b8a] focus:border-transparent transition-all"
-                          required
-                        />
+                    {/* Step 2: Submit Proof */}
+                    <div>
+                      <div className="flex items-center gap-3 mb-6">
+                        <div className="w-8 h-8 rounded-full bg-[#007b8a] flex items-center justify-center text-white text-sm font-black flex-shrink-0">
+                          2
+                        </div>
+                        <h4 className="text-base font-bold text-zinc-200 uppercase tracking-wider">Submit your proof</h4>
                       </div>
 
-                      <div className="text-left">
-                        <label htmlFor="payment-proof-file" className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-zinc-300 mb-3 uppercase tracking-wider">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-[#00a8bd]">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
-                          </svg>
-                          Payment Receipt
-                        </label>
-                        <div className="relative">
+                      <form onSubmit={handlePaymentProofSubmit} className="space-y-6">
+                        <div className="text-left">
+                          <label htmlFor="transaction-id" className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-zinc-300 mb-3 uppercase tracking-wider">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-[#00a8bd]">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.076-4.076a1.526 1.526 0 0 1 1.037-.443 48.282 48.282 0 0 0 5.68-.494c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z" />
+                            </svg>
+                            Transaction ID
+                          </label>
                           <input
-                            id="payment-proof-file"
-                            type="file"
-                            accept=".pdf,.png,.jpg,.jpeg,.webp"
-                            onChange={(e) => {
-                              const file = e.target.files?.[0] || null;
-                              updateUi({ paymentProofFile: file });
-                            }}
-                            className="w-full rounded-xl border border-zinc-700/80 bg-zinc-900/80 px-4 py-3 text-xs sm:text-sm text-zinc-300 file:mr-3 file:sm:mr-4 file:rounded-lg file:border-0 file:bg-[#007b8a] file:px-4 file:py-2 file:text-[10px] file:sm:text-sm file:font-bold file:uppercase file:tracking-wider file:text-white hover:file:bg-[#00a8bd] file:transition-colors file:cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-[#007b8a]"
+                            id="transaction-id"
+                            type="text"
+                            value={ui.transactionID}
+                            onChange={(e) => updateUi({ transactionID: e.target.value })}
+                            placeholder="e.g. TXN-2026-XXXXXX"
+                            className="w-full rounded-xl border border-zinc-700/80 bg-zinc-900/80 px-4 py-3.5 text-sm sm:text-base text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-[#007b8a] focus:border-transparent transition-all"
                             required
                           />
                         </div>
-                        <p className="mt-2 text-[10px] sm:text-xs text-zinc-600 flex items-center gap-1">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3 h-3">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
-                          </svg>
-                          Accepted: PDF, PNG, JPG, WEBP — Max: 700KB
-                        </p>
-                      </div>
 
-                      {ui.paymentProofError && (
-                        <div className="rounded-xl border border-red-800/60 bg-red-900/20 px-4 py-3 text-xs text-red-300 flex items-center gap-2">
-                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 flex-shrink-0">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
-                          </svg>
-                          {ui.paymentProofError}
-                        </div>
-                      )}
-
-                      <button
-                        type="submit"
-                        disabled={ui.isSubmittingPaymentProof}
-                        className="w-full px-8 py-4 bg-gradient-to-r from-[#007b8a] to-[#00a8bd] hover:from-[#00a8bd] hover:to-[#007b8a] disabled:opacity-60 disabled:cursor-not-allowed text-white font-black rounded-xl shadow-lg shadow-[#007b8a]/25 transition-all text-sm uppercase tracking-widest flex items-center justify-center gap-2"
-                      >
-                        {ui.isSubmittingPaymentProof ? (
-                          <>
-                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                            Submitting...
-                          </>
-                        ) : (
-                          <>
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                        <div className="text-left">
+                          <label htmlFor="payment-proof-file" className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-zinc-300 mb-3 uppercase tracking-wider">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-[#00a8bd]">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
                             </svg>
-                            Submit Payment Proof
-                          </>
-                        )}
-                      </button>
-                    </form>
-                  </div>
+                            Payment Receipt
+                          </label>
+                          <div className="relative">
+                            <input
+                              id="payment-proof-file"
+                              type="file"
+                              accept=".pdf,.png,.jpg,.jpeg,.webp"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0] || null;
+                                updateUi({ paymentProofFile: file });
+                              }}
+                              className="w-full rounded-xl border border-zinc-700/80 bg-zinc-900/80 px-4 py-3 text-xs sm:text-sm text-zinc-300 file:mr-3 file:sm:mr-4 file:rounded-lg file:border-0 file:bg-[#007b8a] file:px-4 file:py-2 file:text-[10px] file:sm:text-sm file:font-bold file:uppercase file:tracking-wider file:text-white hover:file:bg-[#00a8bd] file:transition-colors file:cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-[#007b8a]"
+                              required
+                            />
+                          </div>
+                          <p className="mt-2 text-[10px] sm:text-xs text-zinc-600 flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3 h-3">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+                            </svg>
+                            Accepted: PDF, PNG, JPG, WEBP — Max: 700KB
+                          </p>
+                        </div>
 
+                        {ui.paymentProofError && (
+                          <div className="rounded-xl border border-red-800/60 bg-red-900/20 px-4 py-3 text-xs text-red-300 flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 flex-shrink-0">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                            </svg>
+                            {ui.paymentProofError}
+                          </div>
+                        )}
+
+                        <button
+                          type="submit"
+                          disabled={ui.isSubmittingPaymentProof}
+                          className="w-full px-8 py-4 bg-gradient-to-r from-[#007b8a] to-[#00a8bd] hover:from-[#00a8bd] hover:to-[#007b8a] disabled:opacity-60 disabled:cursor-not-allowed text-white font-black rounded-xl shadow-lg shadow-[#007b8a]/25 transition-all text-sm uppercase tracking-widest flex items-center justify-center gap-2"
+                        >
+                          {ui.isSubmittingPaymentProof ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              Submitting...
+                            </>
+                          ) : (
+                            <>
+                              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                              </svg>
+                              Submit Payment Proof
+                            </>
+                          )}
+                        </button>
+                      </form>
+                    </div>
+
+                  </div>
                 </div>
               </div>
-            </div>
             )}
           </div>
         )}
@@ -1246,11 +1247,11 @@ export function RegistrationSection() {
                   </div>
                 ) : (
                   <>
-                    <p className="text-lg text-zinc-600 dark:text-zinc-400 max-w-md mx-auto mb-8">
+                    <p className="text-lg text-zinc-600 dark:text-zinc-400 max-w-md mx-auto mb-8 bg-red-500/10 border border-red-400/40 rounded-2xl p-6 animate-pulse">
                       <span className="font-bold text-red-500">IMPORTANT:</span> MAKE SURE TO USE THE SAME GOOGLE EMAIL YOU REGISTERED WITH
                     </p>
 
-                    <h3 className="text-2xl sm:text-3xl font-black tracking-tight text-white mb-6 text-center">
+                    <h3 className="text-2xl sm:text-3xl font-black tracking-tight text-white mb-6 text-center uppercase">
                       Get your ticket
                     </h3>
                     <TicketTailorWidget email={uiEmail} />
@@ -1550,7 +1551,7 @@ export function RegistrationSection() {
                         <p className="text-xs sm:text-base text-zinc-200 font-semibold truncate">{uiDisplayName || "N/A"}</p>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-3 sm:gap-4 bg-white/[0.02] border border-white/5 p-3 sm:p-5 rounded-xl sm:rounded-2xl hover:bg-white/[0.04] transition-colors">
                       <div className="p-2.5 sm:p-4 bg-white/5 rounded-lg sm:rounded-xl text-zinc-400">
                         <Mail className="w-4 h-4 sm:w-6 sm:h-6" />
@@ -1603,7 +1604,7 @@ export function RegistrationSection() {
                   </div>
 
                   {/* Ticket Info - native details/summary */}
-                  <details 
+                  <details
                     className="mt-6 sm:mt-8 relative z-10 group/details"
                     onToggle={(e) => {
                       const open = (e.target as HTMLDetailsElement).open;

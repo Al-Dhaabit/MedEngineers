@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const idToken = formData.get("idToken");
     const transactionID = formData.get("transactionID");
+    const isAmbassador = formData.get("isAmbassador");
     const paymentProof = formData.get("paymentProof");
 
     if (typeof idToken !== "string" || !idToken.trim()) {
@@ -33,6 +34,10 @@ export async function POST(req: NextRequest) {
 
     if (typeof transactionID !== "string" || !transactionID.trim()) {
       return NextResponse.json({ error: "transactionID is required" }, { status: 400 });
+    }
+
+    if (typeof isAmbassador !== "string" || (isAmbassador !== "true" && isAmbassador !== "false")) {
+      return NextResponse.json({ error: "isAmbassador must be true or false" }, { status: 400 });
     }
 
     if (!(paymentProof instanceof File)) {
@@ -78,6 +83,7 @@ export async function POST(req: NextRequest) {
           uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
         },
         transactionID: transactionID.trim(),
+        isAmbassador: isAmbassador === "true",
         status: "payment_submitted_under_review",
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       },
