@@ -973,7 +973,7 @@ export function RegistrationSection() {
                                 {userZustand?.major === "Engineering" ? (
                                   <>Your registration fee as an Engineering student is <span className="font-bold text-[#00a8bd]">70 AED</span>. Please transfer this amount and submit your proof below.</>
                                 ) : (
-                                  <>Your registration fee as a {userZustand?.major || 'Healthcare'} student is <span className="font-bold text-[#00a8bd]">110 AED</span>. Please transfer this amount and submit your proof below.</>
+                                  <>Your registration fee as a {userZustand?.major || 'Healthcare'} student is <span className="font-bold text-[#00a8bd]">100 AED</span>. Please transfer this amount and submit your proof below.</>
                                 )}
                               </p>
                             )}
@@ -983,7 +983,7 @@ export function RegistrationSection() {
                         <div className="flex items-center justify-between mt-4 pt-4 border-t border-zinc-800/50">
                           <span className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Amount to transfer</span>
                           <span className={`text-2xl font-black ${ui.isAmbassador ? 'text-amber-400' : 'text-[#00a8bd]'}`}>
-                            {ui.isAmbassador ? '70' : userZustand?.major === 'Engineering' ? '70' : '110'} AED
+                            {ui.isAmbassador ? '70' : userZustand?.major === 'Engineering' ? '70' : '100'} AED
                           </span>
                         </div>
                         {/* Change ambassador answer */}
