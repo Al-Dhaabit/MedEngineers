@@ -36,11 +36,31 @@ body {
 /* Safari Scroll Performance Optimizations */
 html, body {
   -webkit-overflow-scrolling: touch;
-  scroll-behavior: auto; /* Safari handles smooth scroll better when not forced */
 }
 
 html {
-  scroll-behavior: smooth !important;
+  scroll-behavior: smooth;
+}
+
+@supports (-webkit-touch-callout: none) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 ::-webkit-scrollbar {

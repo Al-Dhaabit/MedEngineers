@@ -3,7 +3,7 @@ import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
 import admin from "firebase-admin";
 
 
-type AllowedStatus = "domain_selection" | "final_phase";
+type AllowedStatus = "domain_selection" | "final_phase" | "attendee_payment";
 type TargetCollection = "attendees" | "competitors";
 
 async function findUserCollection(uid: string): Promise<TargetCollection | null> {
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "idToken and status are required" }, { status: 400 });
     }
 
-    if (status !== "domain_selection" && status !== "final_phase") {
+    if (status !== "domain_selection" && status !== "final_phase" && status !== "attendee_payment") {
       return NextResponse.json({ error: "Invalid status" }, { status: 400 });
     }
 
@@ -60,6 +60,21 @@ export async function POST(req: NextRequest) {
     }
 
     const currentStatus = String(data.status || data.workflowStatus || "").toLowerCase();
+
+    if (status === "attendee_payment") {
+      if (currentStatus !== "rejected" && currentStatus !== "rejected_awaiting_payment_submission") {
+        return NextResponse.json({ error: "Attendee conversion is only available after competitor review" }, { status: 403 });
+      }
+
+      await docRef.update({
+        status: "attendee_payment",
+        submissionType: "attendee",
+        convertedToAttendeeAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      return NextResponse.json({ success: true, status: "attendee_payment" }, { status: 200 });
+    }
 
     // need to recheck the currentStatus !== domain_selection.
     if (major === "Engineering" && currentStatus !== "ticket_confirmed") {

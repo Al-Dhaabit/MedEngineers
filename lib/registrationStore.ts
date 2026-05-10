@@ -5,6 +5,7 @@ import { create } from "zustand";
 // Database status values
 export type workFlowStatus =
   | "guest"
+  | "role_selection"
   | "loading"
   | "pending"
   | "approved_awaiting_payment_submission"
@@ -14,7 +15,9 @@ export type workFlowStatus =
   | "payment_confirmed"
   | "ticket_confirmed"
   | "domain_selection"
-  | "final_phase";
+  | "final_phase"
+  | "attendee_payment"
+  | "attendee_ticket";
 
 // Events that trigger state transitions
 export type RegistrationEvent =
@@ -26,7 +29,11 @@ export type RegistrationEvent =
   | "PAYMENT_APPROVED"
   | "PAYMENT_REJECTED"
   | "DISMISS_PAYMENT_SUCCESS"
-  | "DOMAIN_CONFIRMED";
+  | "DOMAIN_CONFIRMED"
+  | "CHOSE_COMPETE"
+  | "CHOSE_ATTEND"
+  | "ATTENDEE_PAYMENT_SUBMITTED"
+  | "ATTENDEE_TICKET_DONE";
 
 export interface RegistrationUser {
   uid: string;
@@ -56,6 +63,11 @@ interface RegistrationStore {
 const transitionTable: Record<workFlowStatus, Partial<Record<RegistrationEvent, workFlowStatus | ((user: RegistrationUser | null) => workFlowStatus)>>> = {
   guest: {
     FORM_SUBMITTED: "pending"
+  },
+  
+  role_selection: {
+    CHOSE_COMPETE: "guest",
+    CHOSE_ATTEND: "guest",
   },
 
   // Loading resolves to actual state via hydrateFromServer
@@ -99,6 +111,15 @@ const transitionTable: Record<workFlowStatus, Partial<Record<RegistrationEvent, 
 
   // Terminal state
   final_phase: {},
+
+  // Attendee-only flow
+  attendee_payment: {
+    ATTENDEE_PAYMENT_SUBMITTED: "attendee_ticket",
+  },
+
+  attendee_ticket: {
+    ATTENDEE_TICKET_DONE: "final_phase",
+  },
 };
 
 export const useRegistrationStore = create<RegistrationStore>((set, get) => ({

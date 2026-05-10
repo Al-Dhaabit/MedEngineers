@@ -33,9 +33,10 @@ type FormResponses = Record<string, unknown>;
 
 interface CustomApplicationFormProps {
     onSubmitSuccess?: () => void;
+    initialFormType?: "competitor" | "attendee";
 }
 
-export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationFormProps) {
+export function CustomApplicationForm({ onSubmitSuccess, initialFormType }: CustomApplicationFormProps) {
     const { user, loading: authLoading, signInWithGoogle, signOut } = useAuth();
     const [formData, setFormData] = useState<FormData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -47,7 +48,7 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
     const [success, setSuccess] = useState(false);
     const [responses, setResponses] = useState<FormResponses>({});
     const [touched, setTouched] = useState<Record<string, boolean>>({});
-    const [formType, setFormType] = useState<"competitor" | "attendee">("competitor");
+    const [formType, setFormType] = useState<"competitor" | "attendee">(initialFormType || "competitor");
     const [selectedMajor, setSelectedMajor] = useState<string | null>(null);
     const [validationErrors, setValidationErrors] = useState<Record<string, string | null>>({});
     const [isFormValid, setIsFormValid] = useState(false);
@@ -92,8 +93,8 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
             // Shared for both tracks
         },
         "The Clinical Efficiency Challenge": {
-            title: "The \"Smartness\" Test (Critical Thinking)",
-            description: "Choose one of these scenarios to test their ability to apply medical knowledge to innovation.",
+            title: "The \"Smartness\" Test (OPTIONAL)",
+            description: "Choose one of these scenarios to test your ability to apply medical knowledge to innovation.",
             showFor: "Healthcare"
         },
         "The \"Why\" (Enthusiasm Check)": {
@@ -281,8 +282,6 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
         return !isNaN(num);
     };
 
-    const countWords = (value: string) => value.trim().split(/\s+/).filter(Boolean).length;
-
     const isQuestionRequiredForCurrentForm = (question: FormQuestion, currentFormType: string) => {
         // Competitor flow: all visible questions are required except Technical Toolkit groups LinkedIn URL.
         if (currentFormType === "competitor") {
@@ -416,21 +415,6 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
             if (!isValidEmail(valString)) return "Please enter a valid email address";
         }
 
-        // 9. URL validation for portfolio/resume/link fields
-        if (
-            labelLower.includes("linkedin") ||
-            labelLower.includes("portfolio") ||
-            labelLower.includes("google drive") ||
-            labelLower.includes("resume") ||
-            labelLower.includes("url")
-        ) {
-            try {
-                new URL(valString);
-            } catch {
-                return `${cleanLabel} must be a valid URL (include https://)`;
-            }
-        }
-
         // 10. Generic Number Validation (for other numeric fields)
         if (
             (question.type === "short_answer" && labelLower.includes("number") && !labelLower.includes("contact number") && !labelLower.includes("phone")) ||
@@ -438,40 +422,6 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
             (labelLower.includes("year") && !labelLower.includes("major and year"))
         ) {
             if (!isValidNumber(valString)) return "Please enter a valid number";
-        }
-
-        // 11. Word limits for long-answer fields
-        if (question.type === "paragraph" || question.type === "short_answer") {
-            const words = countWords(valString);
-
-            if (labelLower.includes("hands-on") && labelLower.includes("project")) {
-                if (words > 100) return `Projects description is too long (${words} words). Please keep it to 100 words or fewer.`;
-            }
-
-            if (labelLower.includes("professional") && labelLower.includes("internship")) {
-                if (words > 200) return `Experience description is too long (${words} words). Please keep it to 200 words or fewer.`;
-            }
-
-            if (labelLower.includes("medication delivery system is failing")) {
-                if (words > 500) return `Challenge answer is too long (${words} words). Please keep it to 500 words or fewer.`;
-            }
-
-            // Healthcare-specific limits
-            if (labelLower.includes("clinical efficiency")) {
-                if (words > 200) return `Clinical efficiency response is too long (${words} words). Please keep it to 200 words or fewer.`;
-            }
-
-            if (labelLower.includes("data paradox")) {
-                if (words > 200) return `Data paradox response is too long (${words} words). Please keep it to 200 words or fewer.`;
-            }
-
-            if (labelLower.includes("enthusiasm")) {
-                if (words > 100) return `Enthusiasm response is too long (${words} words). Please keep it to 100 words or fewer.`;
-            }
-
-            if (labelLower.includes("collaborative spirit")) {
-                if (words > 100) return `Collaborative spirit response is too long (${words} words). Please keep it to 100 words or fewer.`;
-            }
         }
 
         // 12. Min/Max Logic (for number inputs)
@@ -1054,15 +1004,6 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
         // The submission logic handles its own validation check.
         let valid = true;
 
-        // Helper to check if any medical scenario is answered (for Healthcare track)
-        const medScenarios = formData.questions.filter(q => 
-            q.label === "The Clinical Efficiency Challenge" || q.label === "The Data Paradox"
-        );
-        const anyMedScenarioAnswered = medScenarios.some(q => {
-            const val = responses[q.id];
-            return typeof val === "string" && val.trim().length > 10; // Simple length check
-        });
-
         formData.questions.forEach((q, index) => {
             const visible = isQuestionVisible(index);
 
@@ -1071,11 +1012,7 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                 const val = responses[q.id];
                 const isRequired = isQuestionRequiredForCurrentForm(q, formType);
 
-                // CROSS-QUESTION VALIDATION: If it's a medical scenario, it's only required if NONE are answered
                 if (q.label === "The Clinical Efficiency Challenge" || q.label === "The Data Paradox") {
-                    if (!anyMedScenarioAnswered) {
-                        valid = false;
-                    }
                     return; 
                 }
 
@@ -1121,41 +1058,19 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
 
             case "paragraph":
                 const text = (responses[question.id] as string) || "";
-                const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
-
-                // Try to extract limit from description (e.g., "limited to 100 words")
-                const limitMatch = question.description?.match(/limit(?:ed)? to (\d+) words/i);
-                const limit = limitMatch ? parseInt(limitMatch[1]) : null;
-                const isOverLimit = limit ? wordCount > limit : false;
 
                 return (
-                    <div className="space-y-2">
-                        <textarea
-                            placeholder={question.placeholder || "Enter your answer..."}
-                            rows={4}
-                            value={text}
-                            onChange={(e) => {
-                                updateResponse(question.id, e.target.value);
-                                setTouched(prev => ({ ...prev, [question.id]: true }));
-                            }}
-                            onBlur={() => setTouched(prev => ({ ...prev, [question.id]: true }))}
-                            className={`w-full px-4 py-3 rounded-xl border ${isOverLimit
-                                ? "border-red-500 ring-1 ring-red-500"
-                                : "border-zinc-200 dark:border-zinc-700"
-                                } bg-white dark:bg-zinc-800/50 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500 focus:ring-2 focus:ring-[#007b8a] focus:border-transparent transition-all outline-none resize-none`}
-                        />
-                        <div className="flex justify-between items-center px-1">
-                            <span className={`text-xs font-medium ${isOverLimit ? "text-red-500" : "text-zinc-400"}`}>
-                                {wordCount} {wordCount === 1 ? "word" : "words"}
-                                {limit && ` / ${limit} limit`}
-                            </span>
-                            {isOverLimit && (
-                                <span className="text-[10px] uppercase tracking-wider font-bold text-red-500 animate-pulse">
-                                    Limit exceeded
-                                </span>
-                            )}
-                        </div>
-                    </div>
+                    <textarea
+                        placeholder={question.placeholder || "Enter your answer..."}
+                        rows={4}
+                        value={text}
+                        onChange={(e) => {
+                            updateResponse(question.id, e.target.value);
+                            setTouched(prev => ({ ...prev, [question.id]: true }));
+                        }}
+                        onBlur={() => setTouched(prev => ({ ...prev, [question.id]: true }))}
+                        className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/50 text-zinc-900 dark:text-white placeholder-zinc-400 dark:placeholder-zinc-500 focus:ring-2 focus:ring-[#007b8a] focus:border-transparent transition-all outline-none resize-none"
+                    />
                 );
 
             case "radio":
@@ -1734,30 +1649,6 @@ export function CustomApplicationForm({ onSubmitSuccess }: CustomApplicationForm
                     )}
 
 
-                    {/* Type Toggle - Segmented Control */}
-                    <div className="shrink-0">
-                        <div className="inline-flex p-1 bg-zinc-100 dark:bg-zinc-800 rounded-lg">
-                            <button
-                                onClick={() => setFormType("competitor")}
-                                className={`px-4 py-2 rounded-md text-sm font-semibold transition-all ${formType === "competitor"
-                                    ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm"
-                                    : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
-                                    }`}
-                            >
-                                Competitor
-                            </button>
-                            {/* Attendee toggle is disabled until further notice */}
-                            {/* <button
-                                onClick={() => setFormType("attendee")}
-                                className={`px-4 py-2 rounded-md text-sm font-semibold transition-all ${formType === "attendee"
-                                    ? "bg-white dark:bg-zinc-700 text-zinc-900 dark:text-white shadow-sm"
-                                    : "text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200"
-                                    }`}
-                            >
-                                Attendee
-                            </button> */}
-                        </div>
-                    </div>
                 </div>
             </div>
 

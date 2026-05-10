@@ -39,18 +39,15 @@ export function EventDetails() {
 
   return (
     <section id="details" className="relative bg-black py-20 sm:py-28 overflow-hidden">
-      {/* Animated background pattern */}
+      {/* Background pattern */}
       <div className="absolute inset-0 z-0 opacity-10">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiPjxkZWZzPjxwYXR0ZXJuIGlkPSJwYXR0ZXJuLWJnIiB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHBhdHRlcm5Vbml0cz0idXNlclNwYWNlT25Vc2UiIHBhdHRlcm5UcmFuc2Zvcm09InJvdGF0ZSg0NSkiPjxyZWN0IHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjAzKSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNwYXR0ZXJuLWJnKSIvPjwvc3ZnPg==')]" />
       </div>
 
       {/* Background Image with Gradient Overlay */}
       <div
-        className="absolute inset-0 z-0 bg-cover bg-center bg-fixed"
-        style={{
-          backgroundImage: 'url("/images/medhack_bg.png")',
-          filter: 'grayscale(100%) brightness(0.3)'
-        }}
+        className="absolute inset-0 z-0 bg-cover bg-center opacity-80"
+        style={{ backgroundImage: 'url("/images/medhack_bg-optimized.webp")' }}
       >
         <div className="absolute inset-0 bg-gradient-to-b from-black/90 via-black/70 to-black/90" />
       </div>
@@ -73,7 +70,7 @@ export function EventDetails() {
             {details.map((item, index) => (
               <div
                 key={item.name}
-                className="group relative bg-gradient-to-br from-gray-900/80 to-gray-800/50 backdrop-blur-sm rounded-xl p-8 border border-gray-800 hover:border-[#007b8a]/30 transition-all duration-300 hover:shadow-[0_0_20px_rgba(0,123,138,0.2)] overflow-hidden"
+                className="group relative bg-gradient-to-br from-gray-900/90 to-gray-800/70 rounded-xl p-8 border border-gray-800 hover:border-[#007b8a]/30 transition-colors duration-300 overflow-hidden"
               >
                 {/* Animated background effect */}
                 <div className="absolute inset-0 bg-gradient-to-br from-[#007b8a]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
@@ -104,7 +101,7 @@ export function EventDetails() {
         <div className="mt-16 text-center">
           <a
             href="#registration"
-            className="inline-flex items-center px-8 py-3.5 text-lg font-bold text-white bg-[#007b8a] hover:bg-[#006a77] rounded-full transition-all duration-300 hover:shadow-[0_0_20px_rgba(0,123,138,0.5)]"
+            className="inline-flex items-center px-8 py-3.5 text-lg font-bold text-white bg-[#007b8a] hover:bg-[#006a77] rounded-full transition-colors duration-300 shadow-lg"
           >
             Register Now
             <ArrowTopRightOnSquareIcon className="ml-2 w-5 h-5" />

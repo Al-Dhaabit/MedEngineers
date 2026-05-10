@@ -134,22 +134,25 @@ export async function POST(req: NextRequest) {
 
         // === CODE ADDED BY AHMAD FOR FIREBASE === //
 
-        // Storing form submission to Firebase
-        if (type === "attendee" && idToken) {
-            try {
-                // Use the already decoded token
-                const uid = decodedToken.uid;
+        // Normalize type
+        const normalizedType = type?.toLowerCase().trim();
 
-                // check if user already exists in attendees collection
+        // Storing form submission to Firebase
+        if (normalizedType === "attendee" && idToken) {
+            try {
+                const uid = decodedToken.uid;
+                console.log(`[Submit] Saving attendee application for UID: ${uid}`);
+
+                // Check if user already exists and HAS SUBMITTED
                 const userDoc = await adminDb.collection("attendees").doc(uid).get();
-                if (userDoc.exists) {
-                    logger.warn('User already exists', {
+                if (userDoc.exists && userDoc.data()?.submitted === true) {
+                    logger.warn('User already submitted as attendee', {
                         requestId,
                         uid: decodedToken.uid,
                         email: decodedToken.email
                     });
                     return NextResponse.json(
-                        { error: "User already exists" },
+                        { error: "You have already submitted an application." },
                         { status: 409 }
                     );
                 }
@@ -157,14 +160,14 @@ export async function POST(req: NextRequest) {
                 // Store the form submission to Firebase// Store in attendees collection (if user doesn't exist)
                 await adminDb.collection("attendees").doc(uid).set({
                     fullName: responses["1706880442"] || "",
-                    email: responses["464604082"] || decodedToken.email,
-                    contactNo: responses["1329997643"] || "",
-                    nationality: responses["492691881"] || "",
-                    emiratesID: responses["1368274746"] || "",
-                    major: responses["1740303904"] || "",
+                    university: responses["1329997643"] || "",
+                    email: responses["492691881"] || decodedToken.email,
+                    contactNo: responses["1368274746"] || "",
+                    nationality: responses["1740303904"] || "",
+                    emiratesID: responses["199947786"] || "",
                     isPaid: false,
                     submitted: true,
-                    status: "pending",
+                    status: "attendee_payment",
                     submittedAt: admin.firestore.FieldValue.serverTimestamp(),
                     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 }, { merge: true });
@@ -172,6 +175,7 @@ export async function POST(req: NextRequest) {
                 logger.info("Form submitted successfully for user (attendee)", { uid });
 
             } catch (fbError) {
+                console.error("[Submit] Firebase attendee save error:", fbError);
                 logger.error('Firebase submission failed', {
                     requestId,
                     type: 'attendee',
@@ -188,21 +192,21 @@ export async function POST(req: NextRequest) {
                     { status: 500 }
                 );
             }
-        } else if (type === "competitor" && idToken) {
+        } else if (normalizedType === "competitor" && idToken) {
             try {
-                // Use the already decoded token
                 const uid = decodedToken.uid;
+                console.log(`[Submit] Saving competitor application for UID: ${uid}`);
 
-                // check if user already exists in attendees collection
+                // Check if user already exists and HAS SUBMITTED
                 const userDoc = await adminDb.collection("competitors").doc(uid).get();
-                if (userDoc.exists) {
-                    logger.warn('User already exists', {
+                if (userDoc.exists && userDoc.data()?.submitted === true) {
+                    logger.warn('User already submitted as competitor', {
                         requestId,
                         uid: decodedToken.uid,
                         email: decodedToken.email
                     });
                     return NextResponse.json(
-                        { error: "User already exists" },
+                        { error: "You have already submitted an application." },
                         { status: 409 }
                     );
                 }

@@ -14,7 +14,9 @@ type WorkflowStatus =
     | "payment_confirmed"
     | "ticket_confirmed"
     | "domain_selection"
-    | "final_phase";
+    | "final_phase"
+    | "attendee_payment"
+    | "attendee_ticket";
 
 function normalizeStatus(value: unknown): string {
     if (typeof value !== "string") return "";
@@ -75,6 +77,10 @@ function normalizeWorkflowStatus(data: Record<string, any>): WorkflowStatus {
             return "domain_selection";
         case "final_phase":
             return "final_phase";
+        case "attendee_payment":
+            return "attendee_payment";
+        case "attendee_ticket":
+            return "attendee_ticket";
     }
 
     // Derive app decision and payment status

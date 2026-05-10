@@ -12,10 +12,6 @@ function hasNonEmptyText(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function countWords(value: string): number {
-  return value.trim().split(/\s+/).filter(Boolean).length;
-}
-
 // BASE FORM VALIDATION (FOR BOTH ATTENDEES AND COMPETITORS)
 export function validateBaseForm(data: any) {
   const errors: string[] = [];
@@ -59,9 +55,6 @@ export function validateBaseForm(data: any) {
 
   // Emirates ID / Passport validation
   if (data.emiratesID) {
-    if (String(data.emiratesID).length < 5) {
-      errors.push("Emirates ID must be at least 5 characters");
-    }
     if (data.emiratesID.length > 18) {
       errors.push("Emirates ID must be less than 18 characters");
     }
@@ -82,13 +75,15 @@ export function validateAttendeeForm(data: any) {
 
   const errors: string[] = [];
 
-  // Major validation for attendees
-  if (!data.major || typeof data.major !== 'string') {
-    errors.push("Major is required");
-  } else if (data.major.length < 2) {
-    errors.push("Major and Year of study must be at least 2 characters");
-  } else if (data.major.length > 100) {
-    errors.push("Major and Year of study must be less than 100 characters");
+  // University validation for attendees
+  if (!data.university || typeof data.university !== 'string') {
+    errors.push("University name is required");
+  } else if (data.university.length < 2) {
+    errors.push("University name must be at least 2 characters");
+  } else if (data.university.length > 100) {
+    errors.push("University name must be less than 100 characters");
+  } else if (!/^[a-zA-Z\s'-]+$/.test(data.university)) {
+    errors.push("University name can only contain letters, spaces, hyphens, and apostrophes");
   }
 
   return {
@@ -145,23 +140,6 @@ export function validateCompetitorForm(data: any) {
       errors.push("Invalid year selection for Engineering");
     }
 
-    // URL validations
-    if (data.linkedIn && data.linkedIn !== '') {
-      try {
-        new URL(data.linkedIn);
-      } catch {
-        // errors.push("Invalid LinkedIn URL"); // Relaxed URL check
-      }
-    }
-
-    if (data.googleDrive && data.googleDrive !== '') {
-      try {
-        new URL(data.googleDrive);
-      } catch {
-        errors.push("Invalid Google Drive URL");
-      }
-    }
-
     // Group Validation for Engineering only
     // const group1 = ["CAD / 3D Modeling (SolidWorks, Fusion 360, etc.)",
     //   "Prototyping (3D Printing, Laser Cutting, CNC)",
@@ -215,27 +193,7 @@ export function validateCompetitorForm(data: any) {
       errors.push("Invalid work style selection");
     }
 
-    // Engineering text field validations (word-based limits)
-    if (hasNonEmptyText(data.projects)) {
-      const projectWordCount = countWords(data.projects);
-      if (projectWordCount > 100) {
-        errors.push(`Projects description is too long (${projectWordCount} words). Please keep it to 100 words or fewer.`);
-      }
-    }
-
-    if (hasNonEmptyText(data.experience)) {
-      const experienceWordCount = countWords(data.experience);
-      if (experienceWordCount > 200) {
-        errors.push(`Experience description is too long (${experienceWordCount} words). Please keep it to 200 words or fewer.`);
-      }
-    }
-
-    if (hasNonEmptyText(data.challengeAnswer)) {
-      const challengeWordCount = countWords(data.challengeAnswer);
-      if (challengeWordCount > 500) {
-        errors.push(`Challenge answer is too long (${challengeWordCount} words). Please keep it to 500 words or fewer.`);
-      }
-    } else {
+    if (!hasNonEmptyText(data.challengeAnswer)) {
       errors.push("Challenge answer is required and cannot be empty.");
     }
   } else if (data.major === "Medicine" || data.major === "Healthcare") {
@@ -272,75 +230,19 @@ export function validateCompetitorForm(data: any) {
       errors.push("Invalid skillset selection");
     }
 
-    // URL validations (EXPERIENCE & PORTFOLIO)
-    // LinkedIn validation
-    if (hasNonEmptyText(data.linkedIn)) {
-      try {
-        new URL(data.linkedIn);
-      } catch {
-        errors.push("LinkedIn URL is invalid. Please provide a full link (including https://).");
-      }
-    }
-
-    // Resume validation
-    if (hasNonEmptyText(data.resume)) {
-      try {
-        new URL(data.resume);
-      } catch {
-        errors.push("Resume URL is invalid. Please provide a full link (including https://).");
-      }
-    }
-
-    // Portfolio validation
+    // Portfolio link is required, but any non-empty text is accepted.
     if (!hasNonEmptyText(data.googleDrive)) {
       errors.push("Portfolio/Personal Projects link is required.");
-    } else {
-      try {
-        new URL(data.googleDrive);
-      } catch {
-        errors.push("Portfolio/Personal Projects URL is invalid. Please provide a full link (including https://).");
-      }
-    }
-
-    // SMARTNESS TEST 
-    // challenge1
-    if (!hasNonEmptyText(data.challenge1)) {
-      errors.push("Challenge 1 response is required and cannot be empty.");
-    } else {
-      const challenge1WordCount = countWords(data.challenge1);
-      if (challenge1WordCount > 200) {
-        errors.push(`Clinical efficiency response is too long (${challenge1WordCount} words). Please keep it to 200 words or fewer.`);
-      }
-    }
-
-    // challenge2
-    if (!hasNonEmptyText(data.challenge2)) {
-      errors.push("Challenge 2 response is required and cannot be empty.");
-    } else {
-      const challenge2WordCount = countWords(data.challenge2);
-      if (challenge2WordCount > 200) {
-        errors.push(`Data paradox response is too long (${challenge2WordCount} words). Please keep it to 200 words or fewer.`);
-      }
     }
 
     // enthusiasmCheck validation
     if (!hasNonEmptyText(data.enthusiasmCheck)) {
       errors.push("Enthusiasm check response is required and cannot be empty.");
-    } else {
-      const enthusiasmWordCount = countWords(data.enthusiasmCheck);
-      if (enthusiasmWordCount > 100) {
-        errors.push(`Enthusiasm response is too long (${enthusiasmWordCount} words). Please keep it to 100 words or fewer.`);
-      }
     }
 
     // collaborativeSpirit validation
     if (!hasNonEmptyText(data.collaborativeSpirit)) {
       errors.push("Collaborative spirit response is required and cannot be empty.");
-    } else {
-      const collaborativeWordCount = countWords(data.collaborativeSpirit);
-      if (collaborativeWordCount > 100) {
-        errors.push(`Collaborative spirit response is too long (${collaborativeWordCount} words). Please keep it to 100 words or fewer.`);
-      }
     }
 
     // END OF VALIDATIONS
@@ -396,11 +298,11 @@ export function validateFormSubmission(data: unknown, type: "attendee" | "compet
   if (type === "attendee") {
     finalFormData = {
       fullName: request.responses["1706880442"],
-      email: request.responses["464604082"],
-      contactNo: request.responses["1329997643"],
-      nationality: request.responses["492691881"],
-      emiratesID: request.responses["1368274746"],
-      major: request.responses["1740303904"],
+      university: request.responses["1329997643"],
+      email: request.responses["492691881"],
+      contactNo: request.responses["1368274746"],
+      nationality: request.responses["1740303904"],
+      emiratesID: request.responses["199947786"],
     }
   } else if (type === "competitor") {
     // Map Healthcare same as Medicine

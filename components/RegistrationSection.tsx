@@ -10,6 +10,21 @@ import { useAuth } from "@/lib/AuthContext";
 import { useRegistrationStore, type workFlowStatus } from "@/lib/registrationStore";
 import { User, Mail, GraduationCap, Calendar, Briefcase, Globe, Ticket, ChevronDown } from "lucide-react";
 
+const BANK_DETAILS = [
+  { label: "Account Holder Name", value: "NOURA HAGAR", isMedium: true },
+  { label: "Bank Name", value: "Al Maryah Community Bank LLC" },
+  { label: "Account Number", value: "5027342290000001", isMono: true, copyable: true },
+  { label: "IBAN", value: "AE800975027342290000001", isMono: true, breakAll: true, copyable: true },
+  { label: "Currency", value: "AED", isMedium: true },
+];
+
+const PAYMENT_AMOUNTS = {
+  ambassador: 50,
+  engineeringCompetitor: 70,
+  healthcareCompetitor: 80,
+  attendee: 30,
+};
+
 export function RegistrationSection() {
 
   const { user, signInWithGoogle, signOut } = useAuth();
@@ -25,6 +40,8 @@ export function RegistrationSection() {
     transition,
     hydrateFromServer
   } = useRegistrationStore();
+
+  const [selectedFormType, setSelectedFormType] = useState<"competitor" | "attendee" | null>(null);
 
   // interface for UI state
   // Purpose: to manage the UI state of the registration section
@@ -52,6 +69,8 @@ export function RegistrationSection() {
     isTicketPanelOpen: boolean;
     isAmbassador: boolean | null;
     isDevPreview: boolean;
+    isConvertingToAttendee: boolean;
+    attendeeConversionError: string | null;
   };
 
   // UI State: using this instead of 15 different useState hooks
@@ -81,6 +100,8 @@ export function RegistrationSection() {
       isTicketPanelOpen: false,
       isAmbassador: null,
       isDevPreview: false,
+      isConvertingToAttendee: false,
+      attendeeConversionError: null,
     }
   );
 
@@ -112,7 +133,7 @@ export function RegistrationSection() {
   // Global function to check user status from the server
   const checkUserStatus = useCallback(async (authUser: any, retryCount = 0, options?: { silent?: boolean }) => {
 
-    // If no auth user, set status to guest and clear user
+    // If no auth user, set status to role_selection and clear user
     if (!authUser) {
       setStatus("guest");
       setUser(null);
@@ -188,7 +209,7 @@ export function RegistrationSection() {
 
         console.warn("No application found in DB after retries.");
         clearStoredData();
-        setStatus("guest");
+        setStatus("role_selection");
         setUser(null);
         updateUi({ hasSubmitted: false });
 
@@ -272,15 +293,39 @@ export function RegistrationSection() {
   }, [user, checkUserStatus]); // Only depend on current user from AuthContext
 
   // Handle manual status check, takes place when user clicks on "Check Status" button
+  const getSignInErrorMessage = (error: unknown) => {
+    const message = error instanceof Error ? error.message : "Failed to sign in";
+
+    if (message.includes("auth/unauthorized-domain")) {
+      return "This browser domain is not authorized for Google sign-in yet. Please add it in Firebase Authentication settings, then try again.";
+    }
+
+    return message;
+  };
+
+  const handleRegisterNow = async () => {
+    updateUi({ statusCheckMessage: "", hasCheckedStatus: false });
+
+    try {
+      await signInWithGoogle();
+    } catch (error: unknown) {
+      console.error("Registration login failed", error);
+      updateUi({
+        statusCheckMessage: getSignInErrorMessage(error),
+        hasCheckedStatus: true,
+      });
+    }
+  };
+
   const handleCheckStatus = async () => {
     updateUi({ isCheckingStatus: true, statusCheckMessage: "", hasCheckedStatus: true });
 
     try {
       await signInWithGoogle();
       // The useEffect on `user` will handle the rest once signed in
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Status check login failed", error);
-      updateUi({ statusCheckMessage: error.message || "Failed to sign in" });
+      updateUi({ statusCheckMessage: getSignInErrorMessage(error) });
     } finally {
       updateUi({ isCheckingStatus: false });
     }
@@ -456,6 +501,39 @@ export function RegistrationSection() {
     }
   }, [userZustand?.major, transition, updateUi]);
 
+  const handleContinueAsAttendee = useCallback(async () => {
+    if (ui.isDevPreview) {
+      setUser(userZustand ? { ...userZustand, submissionType: "attendee" } : userZustand);
+      setStatus("attendee_payment");
+      return;
+    }
+
+    try {
+      updateUi({ isConvertingToAttendee: true, attendeeConversionError: null });
+      const idToken = await auth.currentUser?.getIdToken();
+      if (!idToken) throw new Error("Authentication token missing");
+
+      const res = await fetch("/api/user/update-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken, status: "attendee_payment" }),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to continue as attendee");
+      }
+
+      setUser(userZustand ? { ...userZustand, submissionType: "attendee" } : userZustand);
+      setStatus("attendee_payment");
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : "Failed to continue as attendee";
+      updateUi({ attendeeConversionError: message });
+    } finally {
+      updateUi({ isConvertingToAttendee: false });
+    }
+  }, [setStatus, setUser, ui.isDevPreview, updateUi, userZustand]);
+
   // Check ticket status (Check my ticket)
   const handleCheckTicket = useCallback(async () => {
     try {
@@ -529,8 +607,8 @@ export function RegistrationSection() {
   };
 
   return (
-    <section id="registration" className="py-24 bg-white dark:bg-zinc-950 [will-change:transform]">
-      <div className="mx-auto max-w-7xl px-6 lg:px-8">
+    <section id="registration" className="py-14 sm:py-20 lg:py-24 bg-white dark:bg-zinc-950">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 
         {/* Global User Header & Logout */}
         {hasUser && (
@@ -579,6 +657,8 @@ export function RegistrationSection() {
               "ticket_confirmed",
               "domain_selection",
               "final_phase",
+              "attendee_payment",
+              "attendee_ticket",
             ] as workFlowStatus[]).map((s) => (
               <button
                 key={s}
@@ -597,23 +677,111 @@ export function RegistrationSection() {
           </div>
         )}
 
-        {/* 1. GUEST VIEW: Google Form & Application */}
-        {status === "guest" && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
-            <div className="mx-auto max-w-2xl text-center mb-16">
-              <h2 className="text-4xl sm:text-6xl font-black tracking-[-0.05em] uppercase text-[#007b8a] mb-4">
-                Registration
+        {/* 0. ROLE SELECTION VIEW: Post-Login Choice */}
+        {status === "role_selection" && (
+          <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000 py-12 px-4">
+            <div className="mx-auto max-w-4xl text-center mb-16">
+              <h2 className="text-4xl sm:text-7xl font-black tracking-[-0.05em] uppercase text-zinc-900 dark:text-white mb-6">
+                Choose Your <span className="text-[#007b8a]">Path</span>
               </h2>
-              <p className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-2xl">
-                Apply for MedEngineers 2026
-              </p>
-              <p className="mt-4 text-lg text-zinc-600 dark:text-zinc-400">
-                Fill out the form below and submit your application to join the next generation of medical engineers.
+              <p className="text-xl text-zinc-600 dark:text-zinc-400 max-w-2xl mx-auto leading-relaxed">
+                How would you like to participate in MedEngineers 2026? Select your registration type below to continue.
               </p>
             </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-5xl mx-auto">
+              {/* Competitor Card */}
+              <button
+                onClick={() => {
+                  setSelectedFormType("competitor");
+                  setStatus("guest");
+                }}
+                className="group relative flex flex-col items-center p-10 bg-white dark:bg-zinc-900 border-2 border-zinc-200 dark:border-zinc-800 rounded-[2.5rem] text-center transition-all duration-500 hover:border-[#007b8a] hover:shadow-[0_0_50px_rgba(0,123,138,0.15)] hover:-translate-y-2 overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-[#007b8a]/0 to-[#007b8a]/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                
+                <div className="relative mb-8 p-6 rounded-3xl bg-[#007b8a]/10 text-[#007b8a] group-hover:scale-110 transition-transform duration-500">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-12 h-12">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.601a8.983 8.983 0 0 1 3.361-6.867 8.21 8.21 0 0 0 3 2.48Z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 18a3.75 3.75 0 0 0 .495-7.467 5.99 5.99 0 0 0-1.925 3.546 5.974 5.974 0 0 1-2.133-1A3.75 3.75 0 0 0 12 18Z" />
+                  </svg>
+                </div>
+
+                <h3 className="relative text-3xl font-black tracking-tight text-zinc-900 dark:text-white mb-4 uppercase">Competitor</h3>
+                <p className="relative text-zinc-600 dark:text-zinc-400 leading-relaxed mb-8">
+                  Join a team, solve healthcare challenges, and compete for prestige and prizes. Best for Engineering and Medical students.
+                </p>
+                
+                <div className="relative mt-auto w-full py-4 bg-[#007b8a] text-white font-bold rounded-2xl shadow-lg shadow-[#007b8a]/20 group-hover:shadow-[#007b8a]/40 transition-all duration-300 uppercase tracking-widest text-sm">
+                  Apply to Compete
+                </div>
+              </button>
+
+              {/* Attendee Card */}
+              <button
+                onClick={() => {
+                  setSelectedFormType("attendee");
+                  setStatus("guest");
+                }}
+                className="group relative flex flex-col items-center p-10 bg-white dark:bg-zinc-900 border-2 border-zinc-200 dark:border-zinc-800 rounded-[2.5rem] text-center transition-all duration-500 hover:border-violet-500 hover:shadow-[0_0_50px_rgba(139,92,246,0.15)] hover:-translate-y-2 overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-violet-500/0 to-violet-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+                <div className="relative mb-8 p-6 rounded-3xl bg-violet-500/10 text-violet-500 group-hover:scale-110 transition-transform duration-500">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-12 h-12">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 0 0 2.625.372 9.337 9.337 0 0 0 4.121-.952 4.125 4.125 0 0 0-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 0 1 8.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0 1 11.964-3.07M12 6.375a3.375 3.375 0 1 1-6.75 0 3.375 3.375 0 0 1 6.75 0Zm8.25 2.25a2.625 2.625 0 1 1-5.25 0 2.625 2.625 0 0 1 5.25 0Z" />
+                  </svg>
+                </div>
+
+                <h3 className="relative text-3xl font-black tracking-tight text-zinc-900 dark:text-white mb-4 uppercase">Attendee</h3>
+                <p className="relative text-zinc-600 dark:text-zinc-400 leading-relaxed mb-8">
+                  Attend workshops, listen to keynote speakers, and experience the innovation showcase as part of the audience.
+                </p>
+
+                <div className="relative mt-auto w-full py-4 bg-violet-600 text-white font-bold rounded-2xl shadow-lg shadow-violet-500/20 group-hover:shadow-violet-500/40 transition-all duration-300 uppercase tracking-widest text-sm">
+                  Register as Attendee
+                </div>
+              </button>
+            </div>
+
+          </div>
+        )}
+
+        {/* 1. GUEST VIEW: Landing or Application Form */}
+        {status === "guest" && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+            {user && selectedFormType && (
+              <div className="mx-auto max-w-4xl px-4 mb-8 flex justify-center sm:justify-start">
+                <button
+                  onClick={() => {
+                    setSelectedFormType(null);
+                    setStatus("role_selection");
+                  }}
+                  className="group inline-flex items-center gap-2 rounded-full border border-[#007b8a]/40 bg-[#007b8a]/10 px-4 py-2.5 text-xs font-black uppercase tracking-[0.16em] text-[#007b8a] shadow-sm transition-all hover:-translate-y-0.5 hover:border-[#00a8bd] hover:bg-[#007b8a] hover:text-white hover:shadow-lg hover:shadow-[#007b8a]/20 dark:border-[#00a8bd]/50 dark:bg-[#00a8bd]/10 dark:text-[#7defff] dark:hover:bg-[#007b8a] dark:hover:text-white"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="h-4 w-4 transition-transform group-hover:-translate-x-1">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h16.5" />
+                  </svg>
+                  Change Registration Type
+                </button>
+              </div>
+            )}
+            {user && (
+              <div className="mx-auto max-w-2xl text-center mb-12 sm:mb-16">
+                <h2 className="text-4xl sm:text-6xl font-black tracking-[-0.05em] uppercase text-[#007b8a] mb-4">
+                  Registration
+                </h2>
+                <p className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-2xl">
+                  Apply for MedEngineers 2026
+                </p>
+                <p className="mt-4 text-base sm:text-lg text-zinc-600 dark:text-zinc-400">
+                  Fill out the form below and submit your application to join the next generation of medical engineers.
+                </p>
+              </div>
+            )}
+
             {/* Status Check Result Message - Only show if logged in but no application */}
-            {user && !ui.hasSubmitted && ui.hasCheckedStatus && ui.statusCheckMessage && (
+            {ui.hasCheckedStatus && ui.statusCheckMessage && (
               <div className="mx-auto max-w-4xl mb-8">
                 <div className={`rounded-xl p-6 border ${ui.statusCheckMessage.includes("No application")
                   ? "bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800"
@@ -662,72 +830,113 @@ export function RegistrationSection() {
               </div>
             )}
 
-            {/* Status Check Section for Existing Applicants - Only show if not logged in */}
+            {/* 1a. SPLASH SCREEN: Before login */}
             {!user && (
-              <div className="mx-auto max-w-4xl mb-8">
-                <div className="bg-zinc-50 dark:bg-zinc-900 rounded-xl p-6 border border-zinc-200 dark:border-zinc-800">
-                  <div className="text-center">
-                    <h3 className="text-lg font-semibold text-zinc-900 dark:text-white mb-2">
-                      Already submitted your application?
-                    </h3>
-                    <p className="text-sm text-zinc-600 dark:text-zinc-400 mb-4">
-                      Sign in to check your application status and updates
-                    </p>
-                    <Button
-                      variant="outline"
-                      onClick={handleCheckStatus}
-                      disabled={ui.isCheckingStatus}
-                      className="bg-white dark:bg-zinc-800 border-[#007b8a] text-[#007b8a] hover:bg-[#007b8a] hover:text-white"
-                    >
-                      {ui.isCheckingStatus ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-[#007b8a] border-t-transparent rounded-full animate-spin mr-2" />
-                          Checking Status...
-                        </>
-                      ) : (
-                        <>
-                          <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
-                            <path
-                              fill="#007b8a"
-                              d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                            />
-                            <path
-                              fill="#34A853"
-                              d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                            />
-                            <path
-                              fill="#FBBC05"
-                              d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                            />
-                            <path
-                              fill="#EA4335"
-                              d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                            />
-                          </svg>
-                          Check Application Status
-                        </>
-                      )}
-                    </Button>
+              <div className="mx-auto max-w-6xl animate-in fade-in zoom-in-95 duration-700">
+                <div className="relative overflow-hidden rounded-2xl sm:rounded-[2rem] border border-zinc-200 dark:border-white/10 bg-zinc-950 text-white shadow-2xl">
+                  <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(0,123,138,0.22),transparent_42%),linear-gradient(180deg,rgba(255,255,255,0.07),transparent_55%)]" />
+                  <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+
+                  <div className="relative grid gap-0 lg:grid-cols-[1.05fr_0.95fr]">
+                    <div className="flex min-h-[420px] flex-col justify-between p-6 sm:p-10 lg:p-14">
+                      <div>
+                        <div className="mb-8 inline-flex items-center rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-teal-200">
+                          Applications open
+                        </div>
+
+                        <img
+                          src="/logos/medengineers-logo-optimized.png"
+                          alt="MedEngineers 2026"
+                          className="mb-6 h-auto w-full max-w-[520px] object-contain"
+                        />
+
+                        <p className="max-w-xl text-base leading-7 text-zinc-300 sm:text-lg">
+                          Sign in with Google to start your application or check the status of an existing submission.
+                        </p>
+                      </div>
+
+                    </div>
+
+                    <div className="border-t border-white/10 bg-black/25 p-6 sm:p-10 lg:border-l lg:border-t-0 lg:p-14">
+                      <div className="flex h-full flex-col justify-center">
+                        <div className="mb-7">
+                          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-teal-500 text-white shadow-lg shadow-teal-950/40 sm:h-14 sm:w-14">
+                            <User className="h-6 w-6 sm:h-7 sm:w-7" />
+                          </div>
+                          <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl">
+                            Start your registration
+                          </h2>
+                          <p className="mt-3 text-sm leading-6 text-zinc-400 sm:text-base">
+                            Use the same Google account throughout your application so your status stays connected.
+                          </p>
+                        </div>
+
+                        <div className="flex flex-col gap-3">
+                          <Button
+                            size="lg"
+                            onClick={handleRegisterNow}
+                            className="group relative h-14 w-full justify-center overflow-hidden rounded-xl bg-white px-5 text-base font-bold text-zinc-950 shadow-lg shadow-black/20 transition-transform duration-300 hover:-translate-y-0.5 hover:bg-white active:translate-y-0 sm:h-16"
+                          >
+                            <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-teal-100/80 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                            <svg className="relative z-10 mr-3 h-5 w-5 shrink-0 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 24 24" aria-hidden="true">
+                              <path
+                                fill="#4285F4"
+                                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                              />
+                              <path
+                                fill="#34A853"
+                                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                              />
+                              <path
+                                fill="#FBBC05"
+                                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                              />
+                              <path
+                                fill="#EA4335"
+                                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                              />
+                            </svg>
+                            <span className="relative z-10 transition-transform duration-300 group-hover:translate-x-0.5">
+                              Register Now!
+                            </span>
+                          </Button>
+
+                          <button
+                            onClick={handleCheckStatus}
+                            disabled={ui.isCheckingStatus}
+                            className="flex h-14 w-full items-center justify-center rounded-xl border border-white/10 bg-white/[0.03] px-5 text-xs font-bold uppercase tracking-[0.16em] text-zinc-300 transition-all hover:border-teal-400/50 hover:bg-teal-400/10 hover:text-white"
+                          >
+                            {ui.isCheckingStatus ? "Checking..." : "Check Application Status"}
+                          </button>
+                        </div>
+
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             )}
 
 
-            <div className="mx-auto max-w-4xl">
-              {/* Custom Styled Form with built-in submit */}
-              <CustomApplicationForm onSubmitSuccess={() => {
-                console.log("Form submitted successfully, triggering status check...");
+            {user && (
+              <div className="mx-auto max-w-4xl">
+                {/* Custom Styled Form with built-in submit */}
+                <CustomApplicationForm 
+                  initialFormType={selectedFormType || "competitor"}
+                  onSubmitSuccess={() => {
+                    console.log("Form submitted successfully, triggering status check...");
 
-                // Set loading status immediately
-                setStatus("loading");
+                    // Set loading status immediately
+                    setStatus("loading");
 
-                // Then check status after Firebase write completes
-                setTimeout(() => {
-                  checkUserStatus(auth.currentUser || user);
-                }, 2000); // 2 second delay for Firebase write
-              }} />
-            </div>
+                    // Then check status after Firebase write completes
+                    setTimeout(() => {
+                      checkUserStatus(auth.currentUser || user);
+                    }, 2000); // 2 second delay for Firebase write
+                  }} 
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -816,7 +1025,7 @@ export function RegistrationSection() {
               )}
               {status === 'rejected_awaiting_payment_submission' && (
                 <h2 className="text-4xl sm:text-6xl font-black tracking-[-0.05em] uppercase text-orange-500 mb-3">
-                  YOUR INVITATION
+                  THANK YOU FOR APPLYING
                 </h2>
               )}
               {status === 'payment_rejected' && (
@@ -894,7 +1103,10 @@ export function RegistrationSection() {
               {status === "rejected_awaiting_payment_submission" && (
                 <div>
                   <p className="text-base text-zinc-400 max-w-xl mx-auto leading-relaxed">
-                    Unfortunately, your application was not selected for the competitive track this cycle. However, you are welcome to attend the event as an audience member rather than a competitor. You can secure your General Attendance ticket below.
+                    We really appreciate the time and effort you put into your competitor application. After review, we are sorry to share that you were not selected for the competitive track this cycle.
+                  </p>
+                  <p className="mt-4 text-base text-zinc-300 max-w-xl mx-auto leading-relaxed">
+                    We would still love to have you at MedEngineers 2026 as an attendee. Would you like to continue with attendee registration instead?
                   </p>
 
                   {/* Status Timeline */}
@@ -925,6 +1137,34 @@ export function RegistrationSection() {
                       <span className="text-[11px] font-bold text-amber-400 mt-2 uppercase tracking-wider">Invited</span>
                     </div>
                   </div>
+
+                  <div className="mt-10 mx-auto max-w-xl rounded-2xl border border-orange-500/20 bg-orange-500/5 p-5 sm:p-6">
+                    <h3 className="text-lg sm:text-xl font-black text-white tracking-tight">
+                      Join as an attendee
+                    </h3>
+                    <p className="mt-2 text-sm leading-6 text-zinc-400">
+                      Attendee registration is {PAYMENT_AMOUNTS.attendee} AED and gives you access to the event experience without competing.
+                    </p>
+
+                    {ui.attendeeConversionError && (
+                      <p className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm font-medium text-red-300">
+                        {ui.attendeeConversionError}
+                      </p>
+                    )}
+
+                    <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+                      <button
+                        onClick={handleContinueAsAttendee}
+                        disabled={ui.isConvertingToAttendee}
+                        className="w-full sm:w-auto min-w-[180px] rounded-xl bg-[#007b8a] px-6 py-3.5 text-sm font-black uppercase tracking-widest text-white shadow-lg shadow-[#007b8a]/20 transition-all hover:-translate-y-0.5 hover:bg-[#00a8bd] disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {ui.isConvertingToAttendee ? "Continuing..." : "Yes, Attend"}
+                      </button>
+                      <p className="text-xs text-zinc-500">
+                        You can decide later by returning to this page.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
               {status === "payment_rejected" && (
@@ -936,8 +1176,8 @@ export function RegistrationSection() {
               )}
             </div>
 
-            {/* Only show payment details after ambassador question is answered (for approved), or always for rejected/payment_rejected */}
-            {(status !== "approved_awaiting_payment_submission" || ui.isAmbassador !== null) && (
+            {/* Only show payment details after ambassador question is answered for approved users. Rejected competitors can opt into the attendee payment phase above. */}
+            {status !== "rejected_awaiting_payment_submission" && (status !== "approved_awaiting_payment_submission" || ui.isAmbassador !== null) && (
               <div className="mx-auto max-w-3xl px-4 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-700">
                 <div className="bg-[#18181b] rounded-2xl shadow-2xl border border-zinc-800/80 overflow-hidden">
 
@@ -966,14 +1206,14 @@ export function RegistrationSection() {
                           <div className="flex-1">
                             {ui.isAmbassador ? (
                               <p className="text-sm text-zinc-300 leading-relaxed">
-                                As a MedHack Ambassador, you are eligible for the special registration price of <span className="font-bold text-amber-400">70 AED</span>. Please provide your transaction details below to confirm your payment at this discounted rate.
+                                As a MedHack Ambassador, you are eligible for the special registration price of <span className="font-bold text-amber-400">{PAYMENT_AMOUNTS.ambassador} AED</span>. Please provide your transaction details below to confirm your payment at this discounted rate.
                               </p>
                             ) : (
                               <p className="text-sm text-zinc-300 leading-relaxed">
                                 {userZustand?.major === "Engineering" ? (
-                                  <>Your registration fee as an Engineering student is <span className="font-bold text-[#00a8bd]">70 AED</span>. Please transfer this amount and submit your proof below.</>
+                                  <>Your registration fee as an Engineering student is <span className="font-bold text-[#00a8bd]">{PAYMENT_AMOUNTS.engineeringCompetitor} AED</span>. Please transfer this amount and submit your proof below.</>
                                 ) : (
-                                  <>Your registration fee as a {userZustand?.major || 'Healthcare'} student is <span className="font-bold text-[#00a8bd]">100 AED</span>. Please transfer this amount and submit your proof below.</>
+                                  <>Your registration fee as a {userZustand?.major || 'Healthcare'} student is <span className="font-bold text-[#00a8bd]">{PAYMENT_AMOUNTS.healthcareCompetitor} AED</span>. Please transfer this amount and submit your proof below.</>
                                 )}
                               </p>
                             )}
@@ -983,14 +1223,21 @@ export function RegistrationSection() {
                         <div className="flex items-center justify-between mt-4 pt-4 border-t border-zinc-800/50">
                           <span className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Amount to transfer</span>
                           <span className={`text-2xl font-black ${ui.isAmbassador ? 'text-amber-400' : 'text-[#00a8bd]'}`}>
-                            {ui.isAmbassador ? '70' : userZustand?.major === 'Engineering' ? '70' : '100'} AED
+                            {ui.isAmbassador
+                              ? PAYMENT_AMOUNTS.ambassador
+                              : userZustand?.major === 'Engineering'
+                                ? PAYMENT_AMOUNTS.engineeringCompetitor
+                                : PAYMENT_AMOUNTS.healthcareCompetitor} AED
                           </span>
                         </div>
                         {/* Change ambassador answer */}
                         <button
                           onClick={() => updateUi({ isAmbassador: null })}
-                          className="mt-3 text-[11px] text-zinc-600 hover:text-zinc-400 transition-colors underline underline-offset-2 block"
+                          className="mt-4 w-full py-2.5 bg-zinc-800/50 hover:bg-zinc-800 border border-zinc-700/50 hover:border-zinc-600 rounded-lg text-xs font-semibold text-zinc-300 transition-all flex items-center justify-center gap-2 group"
                         >
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-zinc-500 group-hover:text-zinc-300 transition-colors">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+                          </svg>
                           Change ambassador status
                         </button>
                       </div>
@@ -1007,14 +1254,7 @@ export function RegistrationSection() {
 
                       <div className="border border-zinc-800/80 rounded-xl overflow-hidden bg-[#1f1f22] shadow-inner">
                         <div className="divide-y divide-zinc-800/60 text-[14px] sm:text-[15px]">
-                          {[
-                            { label: "Account Name", value: "RIT Dubai FZE", isMedium: true },
-                            { label: "Bank Name", value: "Emirates NBD PJSC" },
-                            { label: "Branch", value: "Dubai Silicon Oasis" },
-                            { label: "Account Number", value: "1102425560201", isMono: true, copyable: true },
-                            { label: "SWIFT Code", value: "EBILAEAD", isMono: true, copyable: true },
-                            { label: "IBAN Code", value: "AE390260001102425560201", isMono: true, breakAll: true, copyable: true },
-                          ].map((item, i) => (
+                          {BANK_DETAILS.map((item, i) => (
                             <div key={i} className="group grid grid-cols-[140px_1fr] sm:grid-cols-[180px_1fr] items-center hover:bg-zinc-800/30 transition-colors px-4 py-3.5 sm:px-6 sm:py-4">
                               <div className="font-bold text-zinc-400 uppercase tracking-tight text-[11px] sm:text-xs">
                                 {item.label}
@@ -1171,7 +1411,6 @@ export function RegistrationSection() {
             {/* Application summary */}
             {userZustand && (
               <div className="mt-12 space-y-4 relative">
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#007b8a]/5 to-transparent pointer-events-none" />
                 <div className="p-6 rounded-2xl bg-[#18181b] border border-zinc-800/80 shadow-2xl inline-block text-left text-sm text-zinc-400 min-w-[300px] relative z-10">
                   <div className="flex border-b border-zinc-800/80 pb-3 mb-3">
                     <span className="font-bold text-zinc-300 w-24">Applicant:</span>
@@ -1237,7 +1476,7 @@ export function RegistrationSection() {
               </p>
 
               <p className="text-lg text-zinc-600 dark:text-zinc-400 max-w-md mx-auto mb-8">
-                Buy your ticket below. Once confirmed, you can proceed to the next phase.
+                Secure your ticket below. Once confirmed, you can proceed to the next phase.
               </p>
 
               <div className="mt-6 mb-8">
@@ -1290,6 +1529,249 @@ export function RegistrationSection() {
                   The continue button unlocks after your ticket is confirmed.
                 </p>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ATTENDEE PAYMENT PHASE */}
+        {status === "attendee_payment" && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 py-12">
+            <div className="mx-auto max-w-3xl text-center mb-16">
+              <div className="mb-6 flex justify-center">
+                <div className="relative h-24 w-24 rounded-full bg-gradient-to-br from-violet-500/20 to-violet-900/30 border-2 border-violet-500/40 flex items-center justify-center backdrop-blur-sm shadow-lg shadow-violet-500/10">
+                  <svg className="w-11 h-11 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 9h3.75M15 12h3.75M15 15h3.75M4.5 19.5h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15A2.25 2.25 0 002.25 6.75v10.5A2.25 2.25 0 004.5 19.5zm6-10.125a1.875 1.875 0 11-3.75 0 1.875 1.875 0 013.75 0zm1.294 6.336a6.721 6.721 0 01-3.17.789 6.721 6.721 0 01-3.168-.789 3.376 3.376 0 016.338 0z" />
+                  </svg>
+                </div>
+              </div>
+
+              <h2 className="text-4xl sm:text-6xl font-black tracking-[-0.05em] uppercase text-violet-500 mb-6">
+                ATTENDEE REGISTRATION
+              </h2>
+              <p className="text-xl font-bold tracking-tight text-white sm:text-2xl mb-4">
+                Secure your spot as an attendee
+              </p>
+              <p className="text-base text-zinc-400 max-w-2xl mx-auto leading-relaxed">
+                Complete your payment below to confirm your attendance at MedEngineers 2026. Once verified, you'll be able to secure your event ticket.
+              </p>
+            </div>
+
+            <div className="mx-auto max-w-3xl px-4 pb-24 animate-in fade-in slide-in-from-bottom-4 duration-700">
+              <div className="bg-[#18181b] rounded-2xl shadow-2xl border border-zinc-800/80 overflow-hidden">
+
+                {/* Header */}
+                <div className="bg-gradient-to-r from-violet-600/80 via-violet-500 to-violet-600/80 px-6 py-5 flex items-center justify-center">
+                  <h3 className="text-white font-bold text-lg tracking-wide uppercase">Complete Your Payment</h3>
+                </div>
+
+                <div className="p-6 sm:p-10 space-y-10">
+
+                  {/* Pricing Info */}
+                  <div className="rounded-xl p-5 border bg-violet-500/5 border-violet-500/20">
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 bg-violet-500/20 border border-violet-500/30">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4.5 h-4.5 text-violet-400">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm text-zinc-300 leading-relaxed">
+                          Your attendee registration fee is <span className="font-bold text-violet-400">{PAYMENT_AMOUNTS.attendee} AED</span>. Please transfer this amount and submit your proof below.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-zinc-800/50">
+                      <span className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Amount to transfer</span>
+                      <span className="text-2xl font-black text-violet-400">{PAYMENT_AMOUNTS.attendee} AED</span>
+                    </div>
+                  </div>
+
+
+                  {/* Step 1: Bank Transfer */}
+                  <div>
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-8 h-8 rounded-full bg-violet-500 flex items-center justify-center text-white text-sm font-black flex-shrink-0">
+                        1
+                      </div>
+                      <h4 className="text-base font-bold text-zinc-200 uppercase tracking-wider">Transfer to this account</h4>
+                    </div>
+
+                    <div className="border border-zinc-800/80 rounded-xl overflow-hidden bg-[#1f1f22] shadow-inner">
+                      <div className="divide-y divide-zinc-800/60 text-[14px] sm:text-[15px]">
+                        {BANK_DETAILS.map((item, i) => (
+                          <div key={i} className="group grid grid-cols-[140px_1fr] sm:grid-cols-[180px_1fr] items-center hover:bg-zinc-800/30 transition-colors px-4 py-3.5 sm:px-6 sm:py-4">
+                            <div className="font-bold text-zinc-400 uppercase tracking-tight text-[11px] sm:text-xs">
+                              {item.label}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className={`text-zinc-200 ${item.isMedium ? 'font-medium' : ''} ${item.isMono ? 'font-mono tracking-wider' : ''} ${item.breakAll ? 'break-all' : ''} text-sm sm:text-base`}>
+                                {item.value}
+                              </span>
+                              {item.copyable && (
+                                <button
+                                  type="button"
+                                  onClick={() => { navigator.clipboard.writeText(item.value); }}
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-md hover:bg-zinc-700/50 text-zinc-500 hover:text-violet-400 flex-shrink-0"
+                                  title={`Copy ${item.label}`}
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.666 3.888A2.25 2.25 0 0 0 13.5 2.25h-3c-1.03 0-1.9.693-2.166 1.638m7.332 0c.055.194.084.4.084.612v0a.75.75 0 0 1-.75.75H9.75a.75.75 0 0 1-.75-.75v0c0-.212.03-.418.084-.612m7.332 0c.646.049 1.288.11 1.927.184 1.1.128 1.907 1.077 1.907 2.185V19.5a2.25 2.25 0 0 1-2.25 2.25H6.75A2.25 2.25 0 0 1 4.5 19.5V6.257c0-1.108.806-2.057 1.907-2.185a48.208 48.208 0 0 1 1.927-.184" />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="flex items-center gap-4">
+                    <div className="flex-1 h-px bg-zinc-800" />
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 text-zinc-600">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+                    </svg>
+                    <div className="flex-1 h-px bg-zinc-800" />
+                  </div>
+
+                  {/* Step 2: Submit Proof */}
+                  <div>
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="w-8 h-8 rounded-full bg-violet-500 flex items-center justify-center text-white text-sm font-black flex-shrink-0">
+                        2
+                      </div>
+                      <h4 className="text-base font-bold text-zinc-200 uppercase tracking-wider">Submit your proof</h4>
+                    </div>
+
+                    <form onSubmit={handlePaymentProofSubmit} className="space-y-6">
+                      <div className="text-left">
+                        <label htmlFor="attendee-transaction-id" className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-zinc-300 mb-3 uppercase tracking-wider">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-violet-400">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.087.16 2.185.283 3.293.369V21l4.076-4.076a1.526 1.526 0 0 1 1.037-.443 48.282 48.282 0 0 0 5.68-.494c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0 0 12 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018Z" />
+                          </svg>
+                          Transaction ID
+                        </label>
+                        <input
+                          id="attendee-transaction-id"
+                          type="text"
+                          value={ui.transactionID}
+                          onChange={(e) => updateUi({ transactionID: e.target.value })}
+                          placeholder="e.g. TXN-2026-XXXXXX"
+                          className="w-full rounded-xl border border-zinc-700/80 bg-zinc-900/80 px-4 py-3.5 text-sm sm:text-base text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent transition-all"
+                          required
+                        />
+                      </div>
+
+                      <div className="text-left">
+                        <label htmlFor="attendee-payment-proof-file" className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-zinc-300 mb-3 uppercase tracking-wider">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 text-violet-400">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+                          </svg>
+                          Payment Receipt
+                        </label>
+                        <div className="relative">
+                          <input
+                            id="attendee-payment-proof-file"
+                            type="file"
+                            accept=".pdf,.png,.jpg,.jpeg,.webp"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0] || null;
+                              updateUi({ paymentProofFile: file });
+                            }}
+                            className="w-full rounded-xl border border-zinc-700/80 bg-zinc-900/80 px-4 py-3 text-xs sm:text-sm text-zinc-300 file:mr-3 file:sm:mr-4 file:rounded-lg file:border-0 file:bg-violet-500 file:px-4 file:py-2 file:text-[10px] file:sm:text-sm file:font-bold file:uppercase file:tracking-wider file:text-white hover:file:bg-violet-600 file:transition-colors file:cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-violet-500"
+                            required
+                          />
+                        </div>
+                        <p className="mt-2 text-[10px] sm:text-xs text-zinc-600 flex items-center gap-1">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-3 h-3">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+                          </svg>
+                          Accepted: PDF, PNG, JPG, WEBP — Max: 700KB
+                        </p>
+                      </div>
+
+                      {ui.paymentProofError && (
+                        <div className="rounded-xl border border-red-800/60 bg-red-900/20 px-4 py-3 text-xs text-red-300 flex items-center gap-2">
+                          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4 flex-shrink-0">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+                          </svg>
+                          {ui.paymentProofError}
+                        </div>
+                      )}
+
+                      <button
+                        type="submit"
+                        disabled={ui.isSubmittingPaymentProof}
+                        className="w-full px-8 py-4 bg-gradient-to-r from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-500 disabled:opacity-60 disabled:cursor-not-allowed text-white font-black rounded-xl shadow-lg shadow-violet-500/25 transition-all text-sm uppercase tracking-widest flex items-center justify-center gap-2"
+                      >
+                        {ui.isSubmittingPaymentProof ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                            Submitting...
+                          </>
+                        ) : (
+                          <>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+                            </svg>
+                            Submit Payment Proof
+                          </>
+                        )}
+                      </button>
+                    </form>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+
+
+          </div>
+        )}
+
+        {/* ATTENDEE TICKET PHASE */}
+        {status === "attendee_ticket" && (
+          <div className="animate-in fade-in zoom-in-95 duration-700">
+            <div className="mx-auto max-w-3xl text-center py-12">
+              <div className="mb-8 flex justify-center">
+                <div className="relative">
+                  <div className="absolute inset-0 bg-violet-500 blur-2xl opacity-20 animate-pulse rounded-full" />
+                  <div className="relative h-24 w-24 rounded-full bg-violet-500 flex items-center justify-center shadow-[0_0_30px_rgba(139,92,246,0.4)]">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="white" className="w-12 h-12">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+
+              <h2 className="text-4xl sm:text-6xl font-black tracking-[-0.05em] uppercase text-violet-500 mb-4">
+                Get Your Ticket
+              </h2>
+              <p className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-2xl mb-6">
+                Almost there!
+              </p>
+              <p className="text-lg text-zinc-600 dark:text-zinc-400 max-w-md mx-auto mb-12">
+                Your payment has been received. Purchase your event ticket below to complete your registration.
+              </p>
+
+              {/* Ticket Tailor Widget Placeholder */}
+              <div className="mx-auto max-w-2xl">
+                <div className="relative bg-[#18181b] rounded-2xl border border-zinc-800/80 shadow-2xl overflow-hidden">
+                  <div className="bg-gradient-to-r from-violet-600/80 via-violet-500 to-violet-600/80 px-6 py-4">
+                    <h3 className="text-white font-bold text-base tracking-wide uppercase">Event Ticket</h3>
+                  </div>
+                  <div className="p-8 sm:p-12 flex flex-col items-center justify-center min-h-[200px]">
+                    <div className="w-16 h-16 rounded-full bg-violet-500/10 border border-violet-500/20 flex items-center justify-center mb-6">
+                      <svg className="w-8 h-8 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
+                      </svg>
+                    </div>
+                    <p className="text-zinc-400 text-sm font-medium mb-2">Ticket widget will be available here</p>
+                    <p className="text-zinc-600 text-xs">Ticket Tailor integration coming soon</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}

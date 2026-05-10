@@ -25,13 +25,13 @@ export function Hero() {
   };
 
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black [will-change:transform]">
+    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black">
       {/* Background Image with Dark Overlay */}
       <div
         className="absolute inset-0 z-0 bg-cover bg-center"
-        style={{ backgroundImage: 'url("/images/bg_image.png")' }}
+        style={{ backgroundImage: 'url("/images/bg_image-optimized.webp")' }}
       >
-        <div className="absolute inset-0 bg-black/60 shadow-[inset_0_0_150px_rgba(0,0,0,0.8)]" />
+        <div className="absolute inset-0 bg-black/60" />
       </div>
 
       {/* Header Container */}
@@ -61,7 +61,7 @@ export function Hero() {
           {/* AUS Logo */}
           <div className="flex items-center shrink-0">
             <img
-              src="/logos/aus_logo.svg"
+              src="/logos/aus_logo-optimized.png"
               alt="AUS Logo"
               className="h-28 sm:h-28 md:h-48 w-auto object-contain"
             />
@@ -76,13 +76,13 @@ export function Hero() {
         <h1 className="flex flex-col items-center w-full">
           <div className="w-full flex justify-center items-center">
             <img
-              src="/logos/Medengineers Logo-cropped.svg"
+              src="/logos/medengineers-logo-optimized.png"
               alt="MedEngineers"
-              className="w-255 h-24 xs:h-32 sm:h-40 md:h-52 lg:h-64 xl:h-82 object-contain drop-shadow-[0_0_15px_rgba(0,123,138,0.3)] [will-change:filter]"
+              className="h-auto w-full max-w-[620px] sm:max-w-[760px] lg:max-w-[900px] object-contain"
             />
           </div>
 
-          <div className="-mt-2 sm:-mt-11 flex flex-row items-center justify-center gap-2 sm:gap-3 text-white/95 font-medium tracking-wide">
+          <div className="mt-2 sm:mt-3 flex flex-row items-center justify-center gap-2 sm:gap-3 text-white/95 font-medium tracking-wide">
             <span className="text-xl sm:text-3xl">🇦🇪</span>
             <span className="text-xs sm:text-xl md:text-2xl uppercase tracking-widest font-light text-center">
               Where Medicine Meets Engineering
@@ -95,7 +95,7 @@ export function Hero() {
           <div className="flex flex-row items-center justify-center gap-3 sm:gap-8 w-full max-w-[340px] sm:max-w-none">
             <a
               href="#registration"
-              className="group relative flex-1 sm:flex-none px-1 sm:px-10 py-3 sm:py-3.5 bg-[#007b8a] text-white font-bold rounded-full overflow-hidden transition-all hover:scale-105 active:scale-95 shadow-[0_0_20px_rgba(0,123,138,0.4)] sm:shadow-[0_0_25px_rgba(0,123,138,0.5)] text-sm sm:text-lg sm:min-w-[240px] text-center"
+              className="group relative flex-1 sm:flex-none px-1 sm:px-10 py-3 sm:py-3.5 bg-[#007b8a] text-white font-bold rounded-full overflow-hidden transition-transform hover:scale-[1.03] active:scale-95 shadow-lg text-sm sm:text-lg sm:min-w-[240px] text-center"
             >
               <span className="relative z-10 whitespace-nowrap">Register</span>
               <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
@@ -103,7 +103,7 @@ export function Hero() {
             
             <Link
               href="/agenda"
-              className="group relative flex-1 sm:flex-none px-1 sm:px-10 py-3 sm:py-3.5 bg-white/10 text-white font-bold rounded-full overflow-hidden transition-all hover:scale-105 active:scale-95 border border-white/20 backdrop-blur-md text-sm sm:text-lg sm:min-w-[240px] text-center shadow-lg"
+              className="group relative flex-1 sm:flex-none px-1 sm:px-10 py-3 sm:py-3.5 bg-white/10 text-white font-bold rounded-full overflow-hidden transition-transform hover:scale-[1.03] active:scale-95 border border-white/20 text-sm sm:text-lg sm:min-w-[240px] text-center shadow-lg"
             >
               <span className="relative z-10 whitespace-nowrap">View Agenda</span>
               <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />

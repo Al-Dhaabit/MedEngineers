@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useCallback, Suspense } from "react";
 import Image from "next/image";
@@ -904,24 +904,17 @@ function AgendaPageInner() {
 
   // Speaker state
   const [speakers, setSpeakers] = useState<SpeakerType[]>([]);
-  const [showAddSpeakerModal, setShowAddSpeakerModal] = useState(false);
   const [speakerViewMode, setSpeakerViewMode] = useState<"list" | "grid">("list");
   const [speakerUpvotes, setSpeakerUpvotes] = useState<Record<number, boolean>>({});
-  const [spkName, setSpkName] = useState("");
-  const [spkRole, setSpkRole] = useState("");
-  const [spkTalkTitle, setSpkTalkTitle] = useState("");
-  const [spkTime, setSpkTime] = useState("");
-  const [spkDuration, setSpkDuration] = useState("");
-  const [spkTags, setSpkTags] = useState("");
   const [adminView, setAdminView] = useState<"management" | "attendee" | "competitor">("management");
 
   useEffect(() => {
-    if (showSubmitModal || selectedProject || showAddSpeakerModal || isMapExpanded) {
+    if (showSubmitModal || selectedProject || isMapExpanded) {
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
     }
-  }, [showSubmitModal, selectedProject, showAddSpeakerModal, isMapExpanded]);
+  }, [showSubmitModal, selectedProject, isMapExpanded]);
 
   // Determine role on mount: dev query param or real session check
   useEffect(() => {
@@ -1280,7 +1273,6 @@ function AgendaPageInner() {
                   <div className="text-center py-16 text-gray-500 border border-white/5 rounded-2xl bg-white/[0.02]">
                     <Mic2 className="w-10 h-10 mx-auto mb-3 text-gray-600" />
                     <p className="text-sm font-medium">No speakers added yet.</p>
-                    {currentRole === "admin" && adminView === "management" && <p className="text-xs text-gray-600 mt-1">Click &quot;+ Add Speaker&quot; to get started.</p>}
                   </div>
                 )}
                 {speakers.map((spk, idx) => (
@@ -1594,13 +1586,6 @@ function AgendaPageInner() {
                     <button onClick={() => setSpeakerViewMode("list")} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${speakerViewMode === "list" ? "bg-[#007b8a] text-white" : "text-gray-400"}`}>List</button>
                     <button onClick={() => setSpeakerViewMode("grid")} className={`px-4 py-2 rounded-lg text-xs font-bold transition-all ${speakerViewMode === "grid" ? "bg-[#007b8a] text-white" : "text-gray-400"}`}>Grid</button>
                   </div>
-                  <button
-                    onClick={() => setShowAddSpeakerModal(true)}
-                    className="px-5 py-2.5 bg-[#007b8a] hover:bg-[#009dae] text-white font-bold rounded-xl transition-all flex items-center gap-1.5 text-sm shadow-[0_0_15px_rgba(0,123,138,0.3)]"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add Speaker
-                  </button>
                 </div>
               </div>
 
@@ -1629,7 +1614,7 @@ function AgendaPageInner() {
                       </div>
                     </div>
                   ))}
-                  {speakers.length === 0 && <div className="text-center py-20 bg-white/[0.02] border border-dashed border-white/10 rounded-2xl text-gray-500">No speakers added yet. Click &quot;Add Speaker&quot; above.</div>}
+                  {speakers.length === 0 && <div className="text-center py-20 bg-white/[0.02] border border-dashed border-white/10 rounded-2xl text-gray-500">No speakers added yet. They will be added via code.</div>}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -1898,154 +1883,8 @@ function AgendaPageInner() {
           </div>
         )}
 
-        {/* Add Speaker Modal */}
-        {showAddSpeakerModal && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in zoom-in-95 duration-200">
-            <div className="bg-[#111118] border border-white/10 rounded-2xl w-full max-w-lg overflow-hidden relative shadow-[0_0_50px_rgba(0,0,0,0.5)] flex flex-col">
-              {/* Close Button */}
-              <button 
-                onClick={() => setShowAddSpeakerModal(false)}
-                className="absolute top-5 right-5 p-1.5 bg-white/5 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-all z-50 border border-white/5"
-              >
-                <X className="w-4 h-4" />
-              </button>
 
-              {/* Header */}
-              <div className="px-8 mt-8 mb-6">
-                <h2 className="text-2xl font-extrabold tracking-tight text-white flex items-baseline gap-2 text-left">
-                  Add <span className="text-[#007b8a] italic font-medium font-[family-name:var(--font-playfair)]">Speaker</span>
-                </h2>
-              </div>
 
-              {/* Form Body */}
-              <div className="px-8 pb-8 space-y-4 text-left">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[11px] font-bold tracking-[1.5px] uppercase text-gray-400 mb-2">
-                      Full Name
-                    </label>
-                    <input 
-                      type="text" 
-                      value={spkName}
-                      onChange={(e) => setSpkName(e.target.value)}
-                      placeholder="e.g. Dr. Mariam Al Rashidi"
-                      className="w-full bg-[#1A1A24] border border-white/5 rounded-lg px-4 py-3 placeholder-zinc-600 focus:outline-none focus:border-[#007b8a]/50 focus:ring-1 focus:ring-[#007b8a]/50 transition-all font-medium text-white text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold tracking-[1.5px] uppercase text-gray-400 mb-2">
-                      Role / Title
-                    </label>
-                    <input 
-                      type="text" 
-                      value={spkRole}
-                      onChange={(e) => setSpkRole(e.target.value)}
-                      placeholder="e.g. CTO at UAE Future Labs"
-                      className="w-full bg-[#1A1A24] border border-white/5 rounded-lg px-4 py-3 placeholder-zinc-600 focus:outline-none focus:border-[#007b8a]/50 focus:ring-1 focus:ring-[#007b8a]/50 transition-all font-medium text-white text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold tracking-[1.5px] uppercase text-gray-400 mb-2">
-                    Talk Title
-                  </label>
-                  <input 
-                    type="text" 
-                    value={spkTalkTitle}
-                    onChange={(e) => setSpkTalkTitle(e.target.value)}
-                    placeholder="e.g. Building AI Products That Actually Work"
-                    className="w-full bg-[#1A1A24] border border-white/5 rounded-lg px-4 py-3 placeholder-zinc-600 focus:outline-none focus:border-[#007b8a]/50 focus:ring-1 focus:ring-[#007b8a]/50 transition-all font-medium text-white text-sm"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-[11px] font-bold tracking-[1.5px] uppercase text-gray-400 mb-2">
-                      Time
-                    </label>
-                    <input 
-                      type="text" 
-                      value={spkTime}
-                      onChange={(e) => setSpkTime(e.target.value)}
-                      placeholder="e.g. 10:00 AM"
-                      className="w-full bg-[#1A1A24] border border-white/5 rounded-lg px-4 py-3 placeholder-zinc-600 focus:outline-none focus:border-[#007b8a]/50 focus:ring-1 focus:ring-[#007b8a]/50 transition-all font-medium text-white text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold tracking-[1.5px] uppercase text-gray-400 mb-2">
-                      Duration
-                    </label>
-                    <input 
-                      type="text" 
-                      value={spkDuration}
-                      onChange={(e) => setSpkDuration(e.target.value)}
-                      placeholder="e.g. 45 min"
-                      className="w-full bg-[#1A1A24] border border-white/5 rounded-lg px-4 py-3 placeholder-zinc-600 focus:outline-none focus:border-[#007b8a]/50 focus:ring-1 focus:ring-[#007b8a]/50 transition-all font-medium text-white text-sm"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-bold tracking-[1.5px] uppercase text-gray-400 mb-2">
-                    Tags <span className="text-gray-500 font-semibold">(comma separated)</span>
-                  </label>
-                  <input 
-                    type="text" 
-                    value={spkTags}
-                    onChange={(e) => setSpkTags(e.target.value)}
-                    placeholder="e.g. AI, Product, Design"
-                    className="w-full bg-[#1A1A24] border border-white/5 rounded-lg px-4 py-3 placeholder-zinc-600 focus:outline-none focus:border-[#007b8a]/50 focus:ring-1 focus:ring-[#007b8a]/50 transition-all font-medium text-white text-sm"
-                  />
-                </div>
-
-                {/* Actions */}
-                <div className="pt-6 flex items-center justify-end gap-3">
-                  <button 
-                    onClick={() => setShowAddSpeakerModal(false)}
-                    className="px-6 py-2.5 rounded-xl font-bold bg-transparent hover:bg-white/5 border border-white/10 transition-all text-[15px] text-gray-300"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    onClick={() => {
-                      if (spkName && spkTalkTitle && spkTime) {
-                        const avatarColors = ["bg-purple-600", "bg-rose-600", "bg-indigo-600", "bg-emerald-600", "bg-amber-600", "bg-cyan-600"];
-                        const nameParts = spkName.trim().split(" ");
-                        const initials = nameParts.length >= 2 
-                          ? (nameParts[0][0] + nameParts[nameParts.length - 1][0]).toUpperCase()
-                          : spkName.slice(0, 2).toUpperCase();
-                        const tags = spkTags ? spkTags.split(",").map(t => t.trim()).filter(Boolean) : [];
-
-                        setSpeakers(prev => [...prev, {
-                          id: Date.now(),
-                          name: spkName,
-                          initials,
-                          role: spkRole,
-                          talkTitle: spkTalkTitle,
-                          time: spkTime,
-                          duration: spkDuration || "30 min",
-                          tags,
-                          avatarColor: avatarColors[prev.length % avatarColors.length],
-                          upvotes: 0,
-                        }]);
-
-                        setSpkName(""); setSpkRole(""); setSpkTalkTitle("");
-                        setSpkTime(""); setSpkDuration(""); setSpkTags("");
-                        setShowAddSpeakerModal(false);
-                      } else {
-                        alert("Please fill in at least the Name, Talk Title, and Time.");
-                      }
-                    }}
-                    className="px-6 py-2.5 rounded-xl font-bold bg-[#007b8a] hover:bg-[#009dae] transition-all text-[15px] text-white shadow-[0_0_15px_rgba(0,123,138,0.2)]"
-                  >
-                    Add Speaker
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
       </main>
     </div>
