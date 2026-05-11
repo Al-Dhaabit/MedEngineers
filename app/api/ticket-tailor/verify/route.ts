@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
         }
 
         const apiKey = process.env.NEXT_PUBLIC_TICKET_TAILOR_API_KEY;
-        const eventId = process.env.TICKET_TAILOR_EVENT_ID;
+        const eventId = collection === "attendees" ? "2208897" : "2168432";
         if (!apiKey || !eventId) {
             return NextResponse.json({ error: "Ticket Tailor API credentials are missing" }, { status: 500 });
         }

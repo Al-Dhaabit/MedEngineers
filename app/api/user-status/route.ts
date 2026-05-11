@@ -157,9 +157,9 @@ export async function POST(req: NextRequest) {
                         major: userData.major || "",
                         year: userData.year || "",
                         majorType: userData.majorType || "",
+                        submissionType: "attendee",
                         domain: userData.domain || "",
                         status: workflowStatus,
-                        submissionType: "attendee",
                     },
                     isPaid: userData.isPaid || userData.isPayed || false,
                 }, { status: 200 });
@@ -184,6 +184,7 @@ export async function POST(req: NextRequest) {
                         majorType: competitorData.majorType || "",
                         domain: competitorData.domain || "",
                         submissionType: "competitor",
+                        status: workflowStatus,
                     },
                     isPaid: competitorData.isPaid || competitorData.isPayed || false,
                 }, { status: 200 });

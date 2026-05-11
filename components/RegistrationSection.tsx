@@ -116,8 +116,10 @@ export function RegistrationSection() {
     status === "rejected_awaiting_payment_submission" ||
     status === "payment_rejected";
   const isPaymentUnderReview = status === "payment_submitted_under_review";
-  const isTicketPhase = status === "payment_confirmed" || status === "ticket_confirmed";
+  const isAttendee = userZustand?.submissionType === "attendee";
+  const isTicketPhase = status === "payment_confirmed" || (status === "ticket_confirmed" && !isAttendee);
   const isTicketConfirmed = status === "ticket_confirmed";
+  const isFinalPhase = status === "final_phase" || (status === "ticket_confirmed" && isAttendee);
 
   useEffect(() => {
     if (status === "domain_selection") {
@@ -1498,7 +1500,7 @@ export function RegistrationSection() {
                 )}
               </div>
 
-              <div className={`${isTicketConfirmed ? "mt-6" : "-mt-16 sm:-mt-20"} flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10`}>
+              <div className={`${isTicketConfirmed ? "mt-6" : "mt-8"} flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10`}>
                 <Button
                   onClick={handleCheckTicket}
                   disabled={ui.isCheckingTicket || isTicketConfirmed}
@@ -1755,23 +1757,34 @@ export function RegistrationSection() {
                 Your payment has been received. Purchase your event ticket below to complete your registration.
               </p>
 
-              {/* Ticket Tailor Widget Placeholder */}
-              <div className="mx-auto max-w-2xl">
-                <div className="relative bg-[#18181b] rounded-2xl border border-zinc-800/80 shadow-2xl overflow-hidden">
-                  <div className="bg-gradient-to-r from-violet-600/80 via-violet-500 to-violet-600/80 px-6 py-4">
-                    <h3 className="text-white font-bold text-base tracking-wide uppercase">Event Ticket</h3>
-                  </div>
-                  <div className="p-8 sm:p-12 flex flex-col items-center justify-center min-h-[200px]">
-                    <div className="w-16 h-16 rounded-full bg-violet-500/10 border border-violet-500/20 flex items-center justify-center mb-6">
-                      <svg className="w-8 h-8 text-violet-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z" />
-                      </svg>
-                    </div>
-                    <p className="text-zinc-400 text-sm font-medium mb-2">Ticket widget will be available here</p>
-                    <p className="text-zinc-600 text-xs">Ticket Tailor integration coming soon</p>
-                  </div>
-                </div>
+              {/* Ticket Tailor Widget */}
+              <div className="mt-8 mb-6">
+                <p className="text-lg text-zinc-600 dark:text-zinc-400 max-w-md mx-auto mb-8 bg-violet-500/10 border border-violet-400/40 rounded-2xl p-6 animate-pulse">
+                  <span className="font-bold text-violet-500">IMPORTANT:</span> MAKE SURE TO USE THE SAME GOOGLE EMAIL YOU REGISTERED WITH
+                </p>
+
+                <h3 className="text-2xl sm:text-3xl font-black tracking-tight text-white mb-6 text-center uppercase">
+                  Get your ticket
+                </h3>
+                <TicketTailorWidget email={uiEmail} eventId="2208897" />
               </div>
+
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10 mt-2">
+                <Button
+                  onClick={handleCheckTicket}
+                  disabled={ui.isCheckingTicket}
+                  className="bg-violet-600 hover:bg-violet-700 disabled:opacity-70 disabled:cursor-not-allowed text-white font-bold py-3 px-10 rounded-full shadow-lg transition-all hover:scale-105"
+                >
+                  {ui.isCheckingTicket ? "Checking..." : "Check My Ticket"}
+                </Button>
+              </div>
+
+              {ui.ticketCheckError && (
+                <p className="mt-4 text-sm text-red-400">{ui.ticketCheckError}</p>
+              )}
+              {ui.ticketCheckSuccess && (
+                <p className="mt-4 text-sm text-emerald-400">{ui.ticketCheckSuccess}</p>
+              )}
             </div>
           </div>
         )}
@@ -2004,7 +2017,7 @@ export function RegistrationSection() {
         )}
 
         {/* 6. FINAL PHASE VIEW: Reworked Mission Control Aesthetic */}
-        {status === "final_phase" && (
+        {isFinalPhase && (
           <div className="animate-in fade-in zoom-in-95 duration-1000">
             <div className="mx-auto max-w-4xl text-center py-12 relative">
 
