@@ -88,7 +88,7 @@ export function CustomApplicationForm({ onSubmitSuccess, initialFormType }: Cust
             showFor: "Healthcare"
         },
         "LinkedIn Profile URL (Optional)": {
-            title: "Experience & Portfolio",
+            title: "Experience & Portfolio (OPTIONAL)",
             description: "",
             // Shared for both tracks
         },
@@ -299,8 +299,10 @@ export function CustomApplicationForm({ onSubmitSuccess, initialFormType }: Cust
                 lowLabel.startsWith("group 3:") ||
                 lowLabel.startsWith("group 4:");
             const isLinkedInField = lowLabel.includes("linkedin");
+            const isCvField = lowLabel.includes("cv") || lowLabel.includes("resume");
+            const isPortfolioField = lowLabel.includes("portfolio") || lowLabel.includes("project link");
 
-            if (isToolkitGroup || isLinkedInField) return false;
+            if (isToolkitGroup || isLinkedInField || isCvField || isPortfolioField) return false;
             return true;
         }
         return question.required;
@@ -456,6 +458,14 @@ export function CustomApplicationForm({ onSubmitSuccess, initialFormType }: Cust
 
                     if (inToolkitSection && q.type !== 'section_header') {
                         // This is a toolkit question -> Make OPTIONAL
+                        return { ...q, required: false };
+                    }
+
+                    const lowLabel = (q.label || "").toLowerCase();
+                    if (lowLabel.includes("cv") || lowLabel.includes("resume") || lowLabel.includes("portfolio") || lowLabel.includes("project link")) {
+                        if (!lowLabel.includes("(optional)")) {
+                            return { ...q, label: q.label + " (OPTIONAL)", required: false };
+                        }
                         return { ...q, required: false };
                     }
 

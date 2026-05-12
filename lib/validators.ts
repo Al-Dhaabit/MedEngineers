@@ -230,10 +230,10 @@ export function validateCompetitorForm(data: any) {
       errors.push("Invalid skillset selection");
     }
 
-    // Portfolio link is required, but any non-empty text is accepted.
-    if (!hasNonEmptyText(data.googleDrive)) {
-      errors.push("Portfolio/Personal Projects link is required.");
-    }
+    // Portfolio link is optional
+    // if (!hasNonEmptyText(data.googleDrive)) {
+    //   errors.push("Portfolio/Personal Projects link is required.");
+    // }
 
     // enthusiasmCheck validation
     if (!hasNonEmptyText(data.enthusiasmCheck)) {
