@@ -114,6 +114,7 @@ const transitionTable: Record<workFlowStatus, Partial<Record<RegistrationEvent, 
 
   // Attendee-only flow
   attendee_payment: {
+    PAYMENT_PROOF_SUBMITTED: "payment_submitted_under_review",
     ATTENDEE_PAYMENT_SUBMITTED: "attendee_ticket",
   },
 

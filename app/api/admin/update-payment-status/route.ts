@@ -41,9 +41,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Payment submission not found" }, { status: 404 });
     }
 
+    const nextStatus = paymentSuccessful
+      ? targetCollection === "attendees"
+        ? "attendee_ticket"
+        : "payment_confirmed"
+      : "payment_rejected";
+
     await targetRef.update({
       isPaid: paymentSuccessful,
-      status: paymentSuccessful ? "payment_confirmed" : "payment_rejected",
+      status: nextStatus,
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       lastPaymentReviewBy: adminUser.email,
       lastPaymentReviewAt: new Date().toISOString(),
@@ -69,7 +75,7 @@ export async function POST(request: NextRequest) {
       logger.error("Failed to write payment audit log", { requestId, auditError });
     }
 
-    return NextResponse.json({ success: true, paymentSuccessful });
+    return NextResponse.json({ success: true, paymentSuccessful, status: nextStatus });
   } catch (error) {
     logger.error("Failed to update payment status", { requestId, error });
     return NextResponse.json({ error: "Internal server error during payment status update" }, { status: 500 });

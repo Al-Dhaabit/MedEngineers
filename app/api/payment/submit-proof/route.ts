@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebaseAdmin";
 import admin from "firebase-admin";
 
-const MAX_FILE_BYTES = 700 * 1024; // Keep below Firestore 1MB doc limit after base64 encoding
+const MAX_FILE_BYTES = 1024 * 1024; // 1MB upload limit for payment proof
 
 type TargetCollection = "attendees" | "competitors";
 
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
 
     if (paymentProof.size > MAX_FILE_BYTES) {
       return NextResponse.json(
-        { error: "File is too large. Please upload a file up to 700KB." },
+        { error: "File is too large. Please upload a file up to 1MB." },
         { status: 400 }
       );
     }
