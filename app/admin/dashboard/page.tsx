@@ -76,15 +76,11 @@ async function getEngineeringCompetitors(): Promise<Competitor[]> {
     });
 }
 
-async function getPaymentSubmissions(): Promise<PaymentSubmission[]> {
-    const attendeesRef = adminDb.collection("attendees");
+async function getCompetitorPaymentSubmissions(): Promise<PaymentSubmission[]> {
     const competitorsRef = adminDb.collection("competitors");
-    const [attendeeSnapshot, competitorSnapshot] = await Promise.all([
-        attendeesRef.where("status", "in", ["approved_awaiting_payment_submission", "payment_submitted_under_review", "payment_confirmed", "ticket_confirmed", "payment_rejected", "domain_selection", "final_phase"]).get(),
-        competitorsRef.where("status", "in", ["approved_awaiting_payment_submission", "payment_submitted_under_review", "payment_confirmed", "ticket_confirmed", "payment_rejected", "domain_selection", "final_phase"]).get(),
-    ]);
+    const competitorSnapshot = await competitorsRef.where("status", "in", ["approved_awaiting_payment_submission", "payment_submitted_under_review", "payment_confirmed", "ticket_confirmed", "payment_rejected", "domain_selection", "final_phase"]).get();
 
-    const attendeeRows = attendeeSnapshot.docs.map((doc) => {
+    return competitorSnapshot.docs.map((doc) => {
         const data = doc.data();
         return {
             id: doc.id,
@@ -94,8 +90,13 @@ async function getPaymentSubmissions(): Promise<PaymentSubmission[]> {
             status: data.status || "pending",
         } as PaymentSubmission;
     });
+}
 
-    const competitorRows = competitorSnapshot.docs.map((doc) => {
+async function getAttendeePaymentSubmissions(): Promise<PaymentSubmission[]> {
+    const attendeesRef = adminDb.collection("attendees");
+    const attendeeSnapshot = await attendeesRef.where("status", "in", ["attendee_payment", "payment_submitted_under_review", "attendee_ticket", "ticket_confirmed", "payment_rejected", "final_phase"]).get();
+
+    return attendeeSnapshot.docs.map((doc) => {
         const data = doc.data();
         return {
             id: doc.id,
@@ -105,14 +106,13 @@ async function getPaymentSubmissions(): Promise<PaymentSubmission[]> {
             status: data.status || "pending",
         } as PaymentSubmission;
     });
-
-    return [...competitorRows, ...attendeeRows];
 }
 
 export default async function DashboardPage() {
     const data = await getMedicineCompetitors();
     const engineeringData = await getEngineeringCompetitors();
-    const paymentData = await getPaymentSubmissions();
+    const competitorPaymentData = await getCompetitorPaymentSubmissions();
+    const attendeePaymentData = await getAttendeePaymentSubmissions();
 
     return (
         <div className="container mx-auto py-10">
@@ -140,13 +140,24 @@ export default async function DashboardPage() {
 
             <h1 className="text-2xl font-bold mb-5 mt-20">Payment Table</h1>
             <p className="text-muted-foreground mb-5">Contains users with isPaid. Click a name to review proof and accept or reject payment.</p>
-            <DataTable columns={paymentColumns} data={paymentData} />
+            <DataTable columns={paymentColumns} data={competitorPaymentData} />
             <div className="mt-5 border p-5 rounded-lg">
                 <h2 className="text-lg font-semibold mb-2">Payment Stats</h2>
-                <p>Total Payment Submissions: {paymentData.length}</p>
-                <p>Approved Payments: {paymentData.filter((entry) => entry.status === "payment_confirmed" || entry.status === "ticket_confirmed").length}</p>
-                <p>Rejected Payments: {paymentData.filter((entry) => entry.status === "payment_rejected").length}</p>
-                <p>Pending Payment Applications: {paymentData.filter((entry) => entry.status === "approved_awaiting_payment_submission" || entry.status === "payment_submitted_under_review").length}</p>
+                <p>Total Payment Submissions: {competitorPaymentData.length}</p>
+                <p>Approved Payments: {competitorPaymentData.filter((entry) => entry.status === "payment_confirmed" || entry.status === "ticket_confirmed").length}</p>
+                <p>Rejected Payments: {competitorPaymentData.filter((entry) => entry.status === "payment_rejected").length}</p>
+                <p>Pending Payment Applications: {competitorPaymentData.filter((entry) => entry.status === "approved_awaiting_payment_submission" || entry.status === "payment_submitted_under_review").length}</p>
+            </div>
+
+            <h1 className="text-2xl font-bold mb-5 mt-20">Payment Table for Attendees</h1>
+            <p className="text-muted-foreground mb-5">Contains attendee payment submissions. Click a name to review proof and accept or reject payment.</p>
+            <DataTable columns={paymentColumns} data={attendeePaymentData} />
+            <div className="mt-5 border p-5 rounded-lg">
+                <h2 className="text-lg font-semibold mb-2">Attendee Payment Stats</h2>
+                <p>Total Payment Submissions: {attendeePaymentData.length}</p>
+                <p>Approved Payments: {attendeePaymentData.filter((entry) => entry.status === "attendee_ticket" || entry.status === "ticket_confirmed" || entry.status === "final_phase").length}</p>
+                <p>Rejected Payments: {attendeePaymentData.filter((entry) => entry.status === "payment_rejected").length}</p>
+                <p>Pending Payment Applications: {attendeePaymentData.filter((entry) => entry.status === "attendee_payment" || entry.status === "payment_submitted_under_review").length}</p>
             </div>
 
             <div className="mt-10">

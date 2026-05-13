@@ -40,11 +40,11 @@ export const paymentColumns: ColumnDef<PaymentSubmission>[] = [
     cell: ({ row }) => {
       const status = row.getValue("status") as string;
       const normalized =
-        status === "payment_confirmed" || status === "ticket_confirmed" || status === "final_phase" || status === "domain_selection"
+        status === "payment_confirmed" || status === "attendee_ticket" || status === "ticket_confirmed" || status === "final_phase" || status === "domain_selection"
           ? "Approved"
           : status === "payment_rejected"
             ? "Rejected"
-            : status === "approved_awaiting_payment_submission" || status === "rejected_awaiting_payment_submission"
+            : status === "approved_awaiting_payment_submission" || status === "rejected_awaiting_payment_submission" || status === "attendee_payment"
               ? "Awaiting Payment"
               : status === "payment_submitted_under_review"
                 ? "Pending Review"

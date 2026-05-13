@@ -57,13 +57,12 @@ export async function POST(req: NextRequest) {
         }
 
         const apiKey = process.env.NEXT_PUBLIC_TICKET_TAILOR_API_KEY;
-        const eventId = collection === "attendees" ? "2208897" : "2168432";
+        const eventId = collection === "attendees" ? "8252570" : "8074837";
         if (!apiKey || !eventId) {
             return NextResponse.json({ error: "Ticket Tailor API credentials are missing" }, { status: 500 });
         }
-
         const authHeader = Buffer.from(`${apiKey}:`).toString("base64");
-        const apiUrl = `https://api.tickettailor.com/v1/issued_tickets?event_id=${encodeURIComponent(eventId)}&email=${encodeURIComponent(userEmail.toLowerCase())}&status=valid`;
+        const apiUrl = `https://api.tickettailor.com/v1/issued_tickets?event_id=${encodeURIComponent(eventId)}&email=${encodeURIComponent(userEmail.toLowerCase())}&status=valid&limit=1`;
 
         const apiRes = await fetch(apiUrl.toString(), {
             headers: {

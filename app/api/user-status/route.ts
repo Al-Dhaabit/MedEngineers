@@ -91,6 +91,13 @@ function normalizeWorkflowStatus(data: Record<string, any>): WorkflowStatus {
     if (appDecision === "rejected") return "rejected_awaiting_payment_submission";
     if (appDecision === "pending") return "pending";
 
+    if (data.submissionType === "attendee") {
+        if (paymentStatus === "approved") return "attendee_ticket";
+        if (paymentStatus === "rejected") return "payment_rejected";
+        if (paymentStatus === "under_review") return "payment_submitted_under_review";
+        return "attendee_payment";
+    }
+
     // If payment is approved, return payment_confirmed (ticket still pending)
     if (paymentStatus === "approved") return "payment_confirmed";
     if (paymentStatus === "rejected") return "payment_rejected";
