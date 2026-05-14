@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
     const transactionID = formData.get("transactionID");
     const isAmbassador = formData.get("isAmbassador");
     const paymentProof = formData.get("paymentProof");
+    const discountCode = formData.get("discountCode");
 
     if (typeof idToken !== "string" || !idToken.trim()) {
       return NextResponse.json({ error: "Authentication required" }, { status: 401 });
@@ -73,22 +74,25 @@ export async function POST(req: NextRequest) {
     const fileBytes = Buffer.from(await paymentProof.arrayBuffer());
     const fileBase64 = fileBytes.toString("base64");
 
-    await adminDb.collection(collection).doc(uid).set(
-      {
-        paymentProof: {
-          fileName: paymentProof.name,
-          fileType: paymentProof.type || "application/octet-stream",
-          fileSize: paymentProof.size,
-          data: fileBase64,
-          uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
-        },
-        transactionID: transactionID.trim(),
-        isAmbassador: isAmbassador === "true",
-        status: "payment_submitted_under_review",
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    const updateData: any = {
+      paymentProof: {
+        fileName: paymentProof.name,
+        fileType: paymentProof.type || "application/octet-stream",
+        fileSize: paymentProof.size,
+        data: fileBase64,
+        uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
       },
-      { merge: true }
-    );
+      transactionID: transactionID.trim(),
+      isAmbassador: isAmbassador === "true",
+      status: "payment_submitted_under_review",
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    if (typeof discountCode === "string" && discountCode.trim()) {
+      updateData.discountCode = discountCode.trim();
+    }
+
+    await adminDb.collection(collection).doc(uid).set(updateData, { merge: true });
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error) {

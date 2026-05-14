@@ -12,8 +12,16 @@ export async function POST(request: NextRequest) {
         // Verify the ID token
         const decodedToken = await adminAuth.verifyIdToken(idToken)
 
-        // ⚠️ CRITICAL: Check if user has admin claim
-        if (!decodedToken.admin) {
+        // ⚠️ CRITICAL: Check if user has admin claim or is in hardcoded list
+        const adminEmails = [
+            "khaled.a.m2006@gmail.com",
+            "mohammad01ahmad@gmail.com",
+            "medhackglobal@gmail.com"
+        ];
+        
+        const isAdmin = decodedToken.admin === true || (decodedToken.email && adminEmails.includes(decodedToken.email));
+
+        if (!isAdmin) {
             console.log(`Access denied for user: ${decodedToken.email} - No admin claim`)
             return NextResponse.json(
                 { error: 'Access denied. Admin privileges required.' },

@@ -1,9 +1,11 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect, useCallback, Suspense } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useAuth } from "@/lib/AuthContext";
+import { Button } from "@/components/ui/button";
 import { 
   CheckCircle2, 
   Ticket, 
@@ -39,6 +41,9 @@ import {
   ChevronUp,
   Briefcase,
   Download,
+  LogOut,
+  Search,
+  AlertCircle,
   type LucideIcon,
 } from "lucide-react";
 
@@ -90,7 +95,6 @@ interface Team {
   id: number;
   name: string;
   members: TeamMember[];
-  emoji: string;
   colorClass: string;
 }
 
@@ -302,8 +306,6 @@ const TEAM_COLORS = [
   "bg-green-500/20 text-green-400",
 ];
 
-const TEAM_EMOJIS = ["🚀", "💡", "⚡", "🔥", "🌟", "🎯", "🛸", "🦁", "🐉", "🎪", "🔮", "💎"];
-
 function getInitials(name?: string): string {
   if (!name) return "??";
   return name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2);
@@ -453,114 +455,357 @@ function AgendaCardGrid({ item }: { item: AgendaItem }) {
 }
 
 /* ═══════════════════════════════════════════
-   ADD TEAM MODAL
+   EMAIL AUTOCOMPLETE FROM BACKEND
 ═══════════════════════════════════════════ */
-function AddTeamModal({ isOpen, onClose, onSave }: { isOpen: boolean; onClose: () => void; onSave: (team: Team) => void }) {
-  const [teamName, setTeamName] = useState("");
-  const [members, setMembers] = useState<TeamMember[]>([{ email: "" }]);
 
-  const addMember = () => setMembers([...members, { email: "" }]);
+function EmailAutocomplete({ 
+  value, 
+  onChange, 
+  onSelect,
+  currentUser,
+  excludeEmails = []
+}: { 
+  value: string; 
+  onChange: (v: string) => void; 
+  onSelect: (user: any) => void;
+  currentUser: any;
+  excludeEmails?: string[];
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [results, setResults] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      if (!value.trim() || value.length < 2) {
+        setResults([]);
+        return;
+      }
+      
+      setIsLoading(true);
+      try {
+        const idToken = await currentUser?.getIdToken();
+        const res = await fetch(`/api/users/search?q=${encodeURIComponent(value)}`, {
+          headers: {
+            "Authorization": `Bearer ${idToken}`
+          }
+        });
+        
+        if (res.ok) {
+          const data = await res.json();
+          setResults(data.users || []);
+        }
+      } catch (err) {
+        console.error("Search failed", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    const debounce = setTimeout(fetchUsers, 300);
+    return () => clearTimeout(debounce);
+  }, [value, currentUser]);
+
+  return (
+    <div className="relative">
+      <input 
+        type="email" 
+        value={value} 
+        onChange={e => {
+          onChange(e.target.value);
+          setIsOpen(true);
+        }} 
+        onFocus={() => setIsOpen(true)}
+        onBlur={() => setTimeout(() => setIsOpen(false), 200)}
+        placeholder="Search by email or name..."
+        className={`w-full bg-white/[0.04] border rounded-lg text-white text-xs px-3 py-2.5 focus:outline-none transition-colors placeholder:text-gray-600 ${
+          value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())
+            ? "border-red-500/50 focus:border-red-500" 
+            : "border-white/10 focus:border-[#007b8a]"
+        }`} 
+      />
+      {isOpen && value && results.filter(u => !excludeEmails.includes(u.email)).length > 0 && (
+        <div className="absolute z-50 w-full mt-1 bg-[#1a1a24] border border-white/10 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+          {results.filter(u => !excludeEmails.includes(u.email)).map(user => (
+            <div 
+              key={user.email} 
+              className="px-3 py-2 hover:bg-white/5 cursor-pointer border-b border-white/5 last:border-0"
+              onMouseDown={(e) => {
+                e.preventDefault(); // Prevent input onBlur from firing first
+                onChange(user.email);
+                onSelect(user);
+                setIsOpen(false);
+              }}
+            >
+              <div className="text-xs text-white font-semibold">{user.name} <span className="text-gray-500 text-[10px] ml-1">({user.major})</span></div>
+              <div className="text-[10px] text-gray-400">{user.email}</div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   TEAM MODAL (Add & Edit)
+═══════════════════════════════════════════ */
+function TeamModal({ 
+  isOpen, 
+  onClose, 
+  onSave, 
+  initialTeam,
+  currentUser,
+  allTeams
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  onSave: (team: Team) => void;
+  initialTeam?: Team | null;
+  currentUser: any;
+  allTeams: Team[];
+}) {
+  const [teamName, setTeamName] = useState(initialTeam ? initialTeam.name : "");
+  const [members, setMembers] = useState<TeamMember[]>(
+    initialTeam && initialTeam.members.length > 0 
+      ? initialTeam.members 
+      : [{ email: "", role: "Member" }]
+  );
+  const [alertConfig, setAlertConfig] = useState<{title: string, message: string} | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      setTeamName(initialTeam ? initialTeam.name : "");
+      setMembers(initialTeam && initialTeam.members.length > 0 ? initialTeam.members : [{ email: "", role: "Member" }]);
+    }
+  }, [isOpen, initialTeam]);
+
+  const addMember = () => setMembers([...members, { email: "", role: "Member" }]);
   const removeMember = (index: number) => setMembers(members.filter((_, i) => i !== index));
   const updateMember = (index: number, field: keyof TeamMember, value: string) => {
-    const updated = [...members];
-    updated[index] = { ...updated[index], [field]: value };
+    setMembers(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], [field]: value };
+      return updated;
+    });
+  };
+
+  const setLeader = (index: number) => {
+    const updated = members.map((m, i) => ({ ...m, role: i === index ? "Leader" : "Member" }));
     setMembers(updated);
   };
 
   const handleSave = () => {
-    if (!teamName.trim()) return alert("Enter a team name");
+    if (!teamName.trim()) return setAlertConfig({ title: "Team Name Required", message: "Please enter a name for your team before saving." });
     
     const validMembers = members.filter(m => m.email.trim());
-    if (!validMembers.length) return alert("Add at least one member with an email");
+    if (!validMembers.length) return setAlertConfig({ title: "Members Required", message: "Please add at least one member with a valid email address." });
 
     // Email format validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     for (const member of validMembers) {
       if (!emailRegex.test(member.email.trim())) {
-        return alert(`Invalid email address format: ${member.email}`);
+        return setAlertConfig({ title: "Invalid Email", message: `The email address "${member.email}" format is incorrect. Please fix it before saving.` });
+      }
+    }
+
+    // Leader validation
+    const hasLeader = validMembers.some(m => m.role === "Leader");
+    if (!hasLeader) {
+      return setAlertConfig({ title: "Leader Required", message: "Every team must have a designated Team Leader. Please set one member as leader using the button." });
+    }
+
+    // Duplicate email check (within the team)
+    const emailsInThisTeam = validMembers.map(m => m.email.toLowerCase().trim());
+    const uniqueEmailsInThisTeam = new Set(emailsInThisTeam);
+    if (uniqueEmailsInThisTeam.size !== emailsInThisTeam.length) {
+      return setAlertConfig({ title: "Duplicate Emails", message: "You have duplicate emails within this team. Each member must have a unique email address." });
+    }
+
+    // Duplicate email check (across other teams)
+    for (const otherTeam of allTeams) {
+      if (initialTeam && otherTeam.id === initialTeam.id) continue;
+      for (const otherMember of otherTeam.members) {
+        if (emailsInThisTeam.includes(otherMember.email.toLowerCase().trim())) {
+          return setAlertConfig({ title: "Conflict Found", message: `Member with email ${otherMember.email} is already registered in another team: ${otherTeam.name}` });
+        }
       }
     }
 
     onSave({
-      id: Date.now(),
+      id: initialTeam ? initialTeam.id : Date.now(),
       name: teamName.trim(),
       members: validMembers,
-      emoji: TEAM_EMOJIS[Math.floor(Math.random() * TEAM_EMOJIS.length)],
-      colorClass: TEAM_COLORS[Math.floor(Math.random() * TEAM_COLORS.length)],
+      colorClass: initialTeam ? initialTeam.colorClass : TEAM_COLORS[Math.floor(Math.random() * TEAM_COLORS.length)],
     });
     setTeamName("");
-    setMembers([{ email: "" }]);
+    setMembers([{ email: "", role: "Member" }]);
     onClose();
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200" onClick={onClose}>
-      <div className="bg-[#111118] border border-white/10 rounded-2xl p-6 md:p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto relative" onClick={e => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 rounded-full border border-white/10 bg-transparent text-gray-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all">
-          <X className="w-4 h-4" />
-        </button>
+    <>
+      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200" onClick={onClose}>
+        <div className="bg-[#111118] border border-white/10 rounded-2xl p-6 md:p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto relative" onClick={e => e.stopPropagation()}>
+          <button onClick={onClose} className="absolute top-4 right-4 w-8 h-8 rounded-full border border-white/10 bg-transparent text-gray-400 hover:text-white hover:bg-white/10 flex items-center justify-center transition-all">
+            <X className="w-4 h-4" />
+          </button>
 
-        <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-          Add <span className="text-[#007b8a] italic font-[family-name:var(--font-playfair)]">Team</span>
-        </h2>
+          <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+            {initialTeam ? "Edit" : "Add"} <span className="text-[#007b8a] italic font-[family-name:var(--font-playfair)]">Team</span>
+          </h2>
 
-        {/* Team Name */}
-        <div className="mb-5">
-          <label className="block text-[10px] font-bold tracking-[1px] uppercase text-gray-500 mb-2">Team Name</label>
-          <input
-            type="text"
-            value={teamName}
-            onChange={e => setTeamName(e.target.value)}
-            placeholder="e.g. Team Phoenix"
-            className="w-full bg-white/[0.04] border border-white/10 rounded-xl text-white text-sm px-4 py-3 focus:outline-none focus:border-[#007b8a] transition-colors placeholder:text-gray-600"
-          />
-        </div>
+          {/* Team Name */}
+          <div className="mb-5">
+            <label className="block text-[10px] font-bold tracking-[1px] uppercase text-gray-500 mb-2">Team Name</label>
+            <input
+              type="text"
+              value={teamName}
+              onChange={e => setTeamName(e.target.value)}
+              placeholder="e.g. Team Phoenix"
+              className="w-full bg-white/[0.04] border border-white/10 rounded-xl text-white text-sm px-4 py-3 focus:outline-none focus:border-[#007b8a] transition-colors placeholder:text-gray-600"
+            />
+          </div>
 
-        {/* Members */}
-        <div className="text-[10px] font-bold tracking-[1px] uppercase text-gray-500 mb-3">Members</div>
-        {members.map((member, i) => (
-          <div key={i} className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-4 mb-3">
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-[10px] font-bold tracking-[1px] uppercase text-gray-500">Member {i + 1}</span>
-              {members.length > 1 && (
-                <button onClick={() => removeMember(i)} className="text-[10px] text-red-400 hover:text-red-300 border border-white/10 px-2 py-0.5 rounded hover:bg-white/5 transition-all">✕</button>
+          {/* Members */}
+          <div className="text-[10px] font-bold tracking-[1px] uppercase text-gray-500 mb-3">Members</div>
+          {members.map((member, i) => (
+            <div key={i} className={`bg-white/[0.03] border ${member.role === "Leader" ? "border-amber-500/30" : "border-white/[0.06]"} rounded-xl p-4 mb-3 relative overflow-visible`}>
+              <div className="flex items-center justify-between mb-3">
+                <span className={`text-[10px] font-bold tracking-[1px] uppercase ${member.role === "Leader" ? "text-amber-400" : "text-gray-500"}`}>
+                  Member {i + 1} {member.role === "Leader" && "★ Team Leader"}
+                </span>
+                <div className="flex items-center gap-2">
+                  {member.role !== "Leader" ? (
+                    <button onClick={() => setLeader(i)} className="text-[9px] font-bold tracking-wide uppercase text-[#007b8a] hover:text-[#008f9f] bg-[#007b8a]/10 hover:bg-[#007b8a]/20 px-2 py-1 rounded transition-all">
+                      Set as Leader
+                    </button>
+                  ) : (
+                    <button onClick={() => updateMember(i, "role", "Member")} className="text-[9px] font-bold tracking-wide uppercase text-amber-500 hover:text-amber-400 bg-amber-500/10 hover:bg-amber-500/20 px-2 py-1 rounded transition-all">
+                      Remove Leader
+                    </button>
+                  )}
+                  {members.length > 1 && (
+                    <button onClick={() => removeMember(i)} className="text-[10px] text-red-400 hover:text-red-300 border border-white/10 px-2 py-0.5 rounded hover:bg-white/5 transition-all">✕</button>
+                  )}
+                </div>
+              </div>
+              
+              <div className="mb-2 relative">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-[10px] font-bold tracking-[1px] uppercase text-gray-500">Email Address (Type to search)</label>
+                </div>
+                <EmailAutocomplete 
+                  value={member.email || ""} 
+                  currentUser={currentUser}
+                  excludeEmails={[
+                    ...allTeams.filter(t => !initialTeam || t.id !== initialTeam.id).flatMap(t => t.members.map(m => m.email)),
+                    ...members.map(m => m.email).filter(e => e !== member.email)
+                  ]}
+                  onChange={(val) => updateMember(i, "email", val)} 
+                  onSelect={(user) => {
+                    updateMember(i, "email", user.email);
+                    if (user.name) updateMember(i, "name", user.name);
+                    if (user.mobile) updateMember(i, "mobile", user.mobile);
+                  }}
+                />
+              </div>
+              {member.name && (
+                <div className="text-[10px] text-gray-400 italic">User found: {member.name}</div>
               )}
             </div>
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-[10px] font-bold tracking-[1px] uppercase text-gray-500">Email Address</label>
-                {member.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(member.email.trim()) && (
-                  <span className="text-[9px] text-red-500 font-bold tracking-wide uppercase animate-pulse">Invalid Format</span>
-                )}
-              </div>
-              <input 
-                type="email" 
-                value={member.email || ""} 
-                onChange={e => updateMember(i, "email", e.target.value)} 
-                placeholder="user@example.com"
-                className={`w-full bg-white/[0.04] border rounded-lg text-white text-xs px-3 py-2.5 focus:outline-none transition-colors placeholder:text-gray-600 ${
-                  member.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(member.email.trim())
-                    ? "border-red-500/50 focus:border-red-500" 
-                    : "border-white/10 focus:border-[#007b8a]"
-                }`} 
-              />
-            </div>
+          ))}
+
+          <button onClick={addMember} className="text-xs font-medium text-gray-400 border border-white/10 px-3 py-1.5 rounded-lg hover:border-white/20 hover:text-gray-200 transition-all mb-6">
+            ＋ Add Member
+          </button>
+
+          {/* Actions */}
+          <div className="flex gap-3 justify-end pt-5 border-t border-white/10">
+            <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-400 border border-white/10 rounded-xl hover:border-white/20 hover:text-gray-200 transition-all">
+              Cancel
+            </button>
+            <button onClick={handleSave} className="px-5 py-2 text-sm font-semibold bg-[#007b8a] text-white rounded-xl hover:bg-[#008f9f] transition-all shadow-[0_0_15px_rgba(0,123,138,0.3)]">
+              {initialTeam ? "Update Team" : "Save Team"}
+            </button>
           </div>
-        ))}
+        </div>
+      </div>
 
-        <button onClick={addMember} className="text-xs font-medium text-gray-400 border border-white/10 px-3 py-1.5 rounded-lg hover:border-white/20 hover:text-gray-200 transition-all mb-6">
-          ＋ Add Member
-        </button>
+      <AlertModal 
+        isOpen={!!alertConfig} 
+        onClose={() => setAlertConfig(null)} 
+        title={alertConfig?.title || ""} 
+        message={alertConfig?.message || ""} 
+      />
+    </>
+  );
+}
 
-        {/* Actions */}
-        <div className="flex gap-3 justify-end pt-5 border-t border-white/10">
+/* ═══════════════════════════════════════════
+   DELETE TEAM MODAL
+═══════════════════════════════════════════ */
+function DeleteTeamModal({ isOpen, onClose, onConfirm, teamName }: { isOpen: boolean; onClose: () => void; onConfirm: () => void; teamName: string }) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200" onClick={onClose}>
+      <div className="bg-[#111118] border border-red-500/20 rounded-2xl p-6 md:p-8 w-full max-w-sm relative" onClick={e => e.stopPropagation()}>
+        <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mb-4 border border-red-500/20">
+          <Trash2 className="w-6 h-6 text-red-500" />
+        </div>
+        
+        <h2 className="text-xl font-bold text-white mb-2">Delete Team?</h2>
+        <p className="text-sm text-gray-400 mb-6">
+          Are you sure you want to remove <span className="text-white font-semibold">{teamName}</span> and all its members? This action cannot be undone.
+        </p>
+
+        <div className="flex gap-3 justify-end">
           <button onClick={onClose} className="px-4 py-2 text-sm font-medium text-gray-400 border border-white/10 rounded-xl hover:border-white/20 hover:text-gray-200 transition-all">
             Cancel
           </button>
-          <button onClick={handleSave} className="px-5 py-2 text-sm font-semibold bg-[#007b8a] text-white rounded-xl hover:bg-[#008f9f] transition-all shadow-[0_0_15px_rgba(0,123,138,0.3)]">
-            Save Team
+          <button onClick={onConfirm} className="px-5 py-2 text-sm font-semibold bg-red-500 text-white rounded-xl hover:bg-red-600 transition-all shadow-[0_0_15px_rgba(239,68,68,0.3)]">
+            Delete Team
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════
+   GENERIC ALERT MODAL
+═══════════════════════════════════════════ */
+function AlertModal({ 
+  isOpen, 
+  onClose, 
+  title, 
+  message, 
+  type = "error" 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  title: string; 
+  message: string; 
+  type?: "error" | "warning" | "info" 
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200" onClick={onClose}>
+      <div className="bg-[#111118] border border-white/10 rounded-2xl p-6 md:p-8 w-full max-w-sm relative shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 border ${type === 'error' ? 'bg-red-500/10 border-red-500/20' : 'bg-amber-500/10 border-amber-500/20'}`}>
+          <AlertCircle className={`w-6 h-6 ${type === 'error' ? 'text-red-500' : 'text-amber-500'}`} />
+        </div>
+        
+        <h2 className="text-xl font-bold text-white mb-2">{title}</h2>
+        <p className="text-sm text-gray-400 mb-6 leading-relaxed">{message}</p>
+
+        <div className="flex justify-end">
+          <button onClick={onClose} className="px-6 py-2.5 text-sm font-semibold bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl transition-all">
+            Got it
           </button>
         </div>
       </div>
@@ -591,21 +836,48 @@ function AdminPanel({
   });
   const [teamViewMode, setTeamViewMode] = useState<"table" | "cards">("table");
   const [showAddTeam, setShowAddTeam] = useState(false);
+  const [editingTeam, setEditingTeam] = useState<Team | null>(null);
+  const [teamToDelete, setTeamToDelete] = useState<Team | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  
+  const { user } = useAuth();
 
   // Persist teams
   useEffect(() => {
     localStorage.setItem("medhack_teams", JSON.stringify(teams));
   }, [teams]);
 
+  // Prevent background scroll when modals are open
+  useEffect(() => {
+    if (showAddTeam || !!teamToDelete) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    // Cleanup on unmount
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [showAddTeam, teamToDelete]);
+
   const addTeam = (team: Team) => setTeams([...teams, team]);
   const deleteTeam = (id: number) => {
-    if (confirm("Remove this team and all their members?")) {
-      setTeams(teams.filter(t => t.id !== id));
-    }
+    setTeams(teams.filter(t => t.id !== id));
+    setTeamToDelete(null);
   };
 
-  // Flatten for table
-  const allMembers = teams.flatMap(t => t.members.map(m => ({ ...m, team: t })));
+  const filteredTeams = teams.filter(t => 
+    t.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    t.members.some(m => m.name && m.name.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  // Flatten and filter for contestant view
+  const allMembers = teams.flatMap(t => t.members.map(m => ({ ...m, team: t })))
+    .filter(m => 
+      !searchQuery || 
+      m.team.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+      (m.name && m.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
 
   const isPreview = adminView !== "management";
 
@@ -662,44 +934,51 @@ function AdminPanel({
         <StatCard value={String(productsCount)} label="Products Submitted" accentColor="bg-emerald-500" icon={LayoutList} />
       </div>
 
-      {/* Teams & Members section label */}
+      {/* Teams & Contestants section label */}
       <div className="text-[10px] font-bold tracking-[2px] uppercase text-gray-500 mb-4">
-        Teams & Members
+        Teams & Contestants
       </div>
 
       {/* View bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div className="flex items-center gap-2">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+        <div className="flex-1 max-w-md relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search className="h-4 w-4 text-gray-500" />
+          </div>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search teams or contestants..."
+            className="block w-full pl-10 pr-3 py-2.5 border border-white/10 rounded-xl leading-5 bg-white/[0.03] text-gray-200 placeholder-gray-500 focus:outline-none focus:bg-white/[0.05] focus:border-[#007b8a] transition-all duration-200 sm:text-sm shadow-inner"
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-1 bg-white/5 p-1 rounded-2xl border border-white/10 shrink-0">
+            <button 
+              onClick={() => setTeamViewMode("table")}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-bold tracking-[1px] uppercase transition-all ${teamViewMode === "table" ? "bg-white/10 text-white shadow-lg" : "text-gray-500 hover:text-gray-300"}`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              Contestants
+            </button>
+            <button 
+              onClick={() => setTeamViewMode("cards")}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-bold tracking-[1px] uppercase transition-all ${teamViewMode === "cards" ? "bg-white/10 text-white shadow-lg" : "text-gray-500 hover:text-gray-300"}`}
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+              Teams
+            </button>
+          </div>
           <button
-            onClick={() => setTeamViewMode("table")}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium border transition-all duration-200 ${
-              teamViewMode === "table"
-                ? "bg-[#007b8a] border-[#007b8a] text-white"
-                : "bg-transparent border-white/10 text-gray-400 hover:border-white/20 hover:text-gray-200"
-            }`}
+            onClick={() => setShowAddTeam(true)}
+            className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold bg-[#007b8a] text-white rounded-xl hover:bg-[#008f9f] transition-all shadow-[0_0_15px_rgba(0,123,138,0.3)]"
           >
-            <LayoutList className="w-3.5 h-3.5" />
-            Table
-          </button>
-          <button
-            onClick={() => setTeamViewMode("cards")}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium border transition-all duration-200 ${
-              teamViewMode === "cards"
-                ? "bg-[#007b8a] border-[#007b8a] text-white"
-                : "bg-transparent border-white/10 text-gray-400 hover:border-white/20 hover:text-gray-200"
-            }`}
-          >
-            <LayoutGrid className="w-3.5 h-3.5" />
-            Cards
+            <Plus className="w-4 h-4" />
+            Add Team
           </button>
         </div>
-        <button
-          onClick={() => setShowAddTeam(true)}
-          className="flex items-center gap-2 px-5 py-2 text-sm font-semibold bg-[#007b8a] text-white rounded-xl hover:bg-[#008f9f] transition-all shadow-[0_0_15px_rgba(0,123,138,0.3)]"
-        >
-          <Plus className="w-4 h-4" />
-          Add Team
-        </button>
       </div>
 
       {/* ─── TABLE VIEW ─── */}
@@ -708,7 +987,7 @@ function AdminPanel({
           {allMembers.length === 0 ? (
             <div className="text-center py-16 text-gray-500">
               <div className="text-4xl mb-4">👥</div>
-              <p className="text-sm">No teams yet — click Add Team to start</p>
+              <p className="text-sm">No contestants found — create a team to add them</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -716,7 +995,7 @@ function AdminPanel({
                 <thead>
                   <tr className="bg-white/[0.04]">
                     <th className="px-4 md:px-5 py-3 text-left text-[10px] font-bold tracking-[1.5px] uppercase text-gray-500">#</th>
-                    <th className="px-4 md:px-5 py-3 text-left text-[10px] font-bold tracking-[1.5px] uppercase text-gray-500">Member</th>
+                    <th className="px-4 md:px-5 py-3 text-left text-[10px] font-bold tracking-[1.5px] uppercase text-gray-500">Contestant</th>
                     <th className="px-4 md:px-5 py-3 text-left text-[10px] font-bold tracking-[1.5px] uppercase text-gray-500">Team</th>
                     <th className="px-4 md:px-5 py-3 text-left text-[10px] font-bold tracking-[1.5px] uppercase text-gray-500 hidden md:table-cell">Mobile</th>
                     <th className="px-4 md:px-5 py-3 text-left text-[10px] font-bold tracking-[1.5px] uppercase text-gray-500 hidden md:table-cell">Role</th>
@@ -737,7 +1016,6 @@ function AdminPanel({
                       </td>
                       <td className="px-4 md:px-5 py-3.5">
                         <span className="inline-flex items-center gap-1.5 bg-white/[0.04] border border-white/[0.08] rounded-md px-2.5 py-1 text-xs font-mono">
-                          <span>{member.team.emoji}</span>
                           <span className="text-gray-300">{member.team.name}</span>
                         </span>
                       </td>
@@ -747,12 +1025,15 @@ function AdminPanel({
                       <td className="px-4 md:px-5 py-3.5 hidden md:table-cell">
                         <span className="text-xs text-gray-400">{member.role || "—"}</span>
                       </td>
-                      <td className="px-4 md:px-5 py-3.5">
+                      <td className="px-4 md:px-5 py-3.5 flex gap-2">
                         <button
-                          onClick={() => deleteTeam(member.team.id)}
-                          className="text-xs font-semibold text-red-400 border border-red-400/30 bg-transparent px-3 py-1 rounded-md hover:bg-red-400/10 transition-all"
+                          onClick={() => {
+                            setEditingTeam(member.team);
+                            setShowAddTeam(true);
+                          }}
+                          className="text-xs font-semibold text-blue-400 border border-blue-400/30 bg-transparent px-3 py-1 rounded-md hover:bg-blue-400/10 transition-all"
                         >
-                          Remove
+                          Edit Team
                         </button>
                       </td>
                     </tr>
@@ -767,19 +1048,16 @@ function AdminPanel({
       {/* ─── CARDS VIEW ─── */}
       {teamViewMode === "cards" && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {teams.length === 0 ? (
+          {filteredTeams.length === 0 ? (
             <div className="text-center py-16 text-gray-500 col-span-full">
               <div className="text-4xl mb-4">👥</div>
-              <p className="text-sm">No teams added yet</p>
+              <p className="text-sm">No teams found matching your search</p>
             </div>
           ) : (
-            teams.map(team => (
+            filteredTeams.map(team => (
               <div key={team.id} className="bg-white/[0.03] border border-white/[0.08] rounded-2xl p-5 transition-all duration-300 hover:border-white/[0.15] hover:-translate-y-1">
                 {/* Card header */}
                 <div className="flex items-center gap-3 mb-4">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl shrink-0 ${team.colorClass}`}>
-                    {team.emoji}
-                  </div>
                   <div>
                     <div className="text-base font-semibold text-white">{team.name}</div>
                     <div className="text-[11px] text-gray-500 font-mono">{team.members.length} member{team.members.length !== 1 ? "s" : ""}</div>
@@ -800,9 +1078,18 @@ function AdminPanel({
                 </div>
 
                 {/* Card footer */}
-                <div className="flex justify-end pt-3 border-t border-white/5">
+                <div className="flex justify-end gap-2 pt-3 border-t border-white/5">
                   <button
-                    onClick={() => deleteTeam(team.id)}
+                    onClick={() => {
+                      setEditingTeam(team);
+                      setShowAddTeam(true);
+                    }}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-blue-400 border border-blue-400/30 bg-transparent px-3 py-1.5 rounded-lg hover:bg-blue-400/10 transition-all"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => setTeamToDelete(team)}
                     className="flex items-center gap-1.5 text-xs font-semibold text-red-400 border border-red-400/30 bg-transparent px-3 py-1.5 rounded-lg hover:bg-red-400/10 transition-all"
                   >
                     <Trash2 className="w-3 h-3" />
@@ -816,8 +1103,31 @@ function AdminPanel({
       )}
 
     </div>
-    {/* Add Team Modal - Outside dimmed area */}
-    <AddTeamModal isOpen={showAddTeam} onClose={() => setShowAddTeam(false)} onSave={addTeam} />
+    {/* Add/Edit Team Modal - Outside dimmed area */}
+    <TeamModal 
+      isOpen={showAddTeam} 
+      currentUser={user}
+      allTeams={teams}
+      onClose={() => {
+        setShowAddTeam(false);
+        setEditingTeam(null);
+      }} 
+      onSave={(team) => {
+        if (editingTeam) {
+          setTeams(teams.map(t => t.id === team.id ? team : t));
+        } else {
+          addTeam(team);
+        }
+      }} 
+      initialTeam={editingTeam}
+    />
+
+    <DeleteTeamModal
+      isOpen={!!teamToDelete}
+      onClose={() => setTeamToDelete(null)}
+      onConfirm={() => deleteTeam(teamToDelete!.id)}
+      teamName={teamToDelete?.name || ""}
+    />
     </div>
   );
 }
@@ -834,10 +1144,8 @@ const ROLE_CONFIG: Record<UserRole, { label: string; icon: LucideIcon; color: st
   admin: { label: "Admin", icon: Shield, color: "text-[#007b8a]", bgColor: "bg-[#007b8a]/15", borderColor: "border-[#007b8a]/30", description: "Full access — manage teams & members" },
 };
 
-/* ─── DEV MODE SWITCHER ─── */
+/* ─── ADMIN IMPERSONATION SWITCHER ─── */
 function DevRoleSwitcher({ currentRole, onRoleChange }: { currentRole: UserRole; onRoleChange: (role: UserRole) => void }) {
-  const isDev = process.env.NODE_ENV === "development";
-  if (!isDev) return null;
 
   return (
     <div className="fixed top-3 right-3 z-[1000] group">
@@ -893,6 +1201,7 @@ function AgendaPageInner() {
   const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [activeFilter, setActiveFilter] = useState("All");
   const [currentRole, setCurrentRole] = useState<UserRole>("attendee");
+  const [actualRole, setActualRole] = useState<UserRole | null>(null);
   const [roleLoading, setRoleLoading] = useState(true);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [submittedProduct, setSubmittedProduct] = useState<{title: string, imageUrl: string, description: string} | null>(null);
@@ -908,6 +1217,9 @@ function AgendaPageInner() {
   const [speakerUpvotes, setSpeakerUpvotes] = useState<Record<number, boolean>>({});
   const [adminView, setAdminView] = useState<"management" | "attendee" | "competitor">("management");
 
+  const { user, loading: authLoading, signInWithGoogle, signOut } = useAuth();
+  const [isAuthorized, setIsAuthorized] = useState<boolean | null>(null);
+
   useEffect(() => {
     if (showSubmitModal || selectedProject || isMapExpanded) {
       document.body.style.overflow = "hidden";
@@ -916,44 +1228,84 @@ function AgendaPageInner() {
     }
   }, [showSubmitModal, selectedProject, isMapExpanded]);
 
-  // Determine role on mount: dev query param or real session check
+  // Determine role and authorization
   useEffect(() => {
-    const roleParam = searchParams.get("role") as UserRole | null;
+    if (authLoading) return;
 
-    if (isDev && roleParam && ["attendee", "competitor", "admin"].includes(roleParam)) {
-      setCurrentRole(roleParam);
+    if (!user) {
       setRoleLoading(false);
+      setIsAuthorized(false);
+      setActualRole(null);
       return;
     }
 
-    // Production: check real admin session
-    const checkAdmin = async () => {
+    const roleParam = searchParams.get("role") as UserRole | null;
+
+    setIsAuthorized(null);
+    setRoleLoading(true);
+
+    const applyRole = (realRole: UserRole) => {
+      setActualRole(realRole);
+      if (realRole === "admin" && roleParam && ["attendee", "competitor", "admin"].includes(roleParam)) {
+        setCurrentRole(roleParam);
+      } else {
+        setCurrentRole(realRole);
+      }
+      setIsAuthorized(true);
+      setRoleLoading(false);
+    };
+
+    // Special check for hardcoded admins
+    const adminEmails = [
+      "khaled.a.m2006@gmail.com",
+      "mohammad01ahmad@gmail.com",
+      "medhackglobal@gmail.com"
+    ];
+    if (user.email && adminEmails.includes(user.email)) {
+      applyRole("admin");
+      return;
+    }
+
+    const checkUserStatus = async () => {
       try {
-        const res = await fetch("/api/verify-session", { credentials: "include" });
+        const idToken = await user.getIdToken();
+        const res = await fetch("/api/user-status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ uid: user.uid, idToken }),
+        });
+
         if (res.ok) {
           const data = await res.json();
-          if (data.admin === true) {
-            setCurrentRole("admin");
+          if (data.status === true) {
+            applyRole(data.type as UserRole);
+          } else {
+            setIsAuthorized(false);
+            setRoleLoading(false);
           }
+        } else {
+          setIsAuthorized(false);
+          setRoleLoading(false);
         }
-      } catch {
-        // Not admin, that's fine
-      } finally {
+      } catch (error) {
+        console.error("Error checking user status:", error);
+        setIsAuthorized(false);
         setRoleLoading(false);
       }
     };
-    checkAdmin();
-  }, [searchParams, isDev]);
 
-  // Dev role switcher handler
+    checkUserStatus();
+  }, [user, authLoading, searchParams]);
+
+  // Admin impersonation role switcher handler
   const handleRoleChange = useCallback((role: UserRole) => {
-    setCurrentRole(role);
-    if (isDev) {
+    if (actualRole === "admin") {
+      setCurrentRole(role);
       const url = new URL(window.location.href);
       url.searchParams.set("role", role);
       window.history.replaceState({}, "", url.toString());
     }
-  }, [isDev]);
+  }, [actualRole]);
 
   const categories = ["All", ...Array.from(new Set(agendaItems.map(i => i.category)))];
 
@@ -969,6 +1321,106 @@ function AgendaPageInner() {
 
   const canVote = currentRole === "attendee";
 
+  if (roleLoading || authLoading || isAuthorized === null) {
+    return (
+      <div className="min-h-screen bg-[#050505] flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-[#007b8a] border-t-transparent rounded-full animate-spin shadow-[0_0_20px_rgba(0,123,138,0.3)]" />
+      </div>
+    );
+  }
+
+  if (isAuthorized === false) {
+    return (
+      <div className="min-h-screen bg-[#050505] relative flex items-center justify-center overflow-hidden font-sans">
+        {/* Background effects */}
+        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-[#007b8a]/10 via-transparent to-transparent pointer-events-none" />
+
+        <div className="absolute top-6 md:top-10 left-4 md:left-8 lg:left-12 xl:left-16 z-20">
+          <Link 
+            href="/"
+            className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors border border-white/10 bg-white/5 backdrop-blur-md px-4 py-2 rounded-full hover:bg-white/10 text-sm font-semibold"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Home
+          </Link>
+        </div>
+        
+        <div className="relative z-10 max-w-md w-full mx-4 text-center">
+          <div className="mb-8 relative inline-block">
+             <div className="absolute inset-0 bg-[#007b8a]/20 blur-3xl rounded-full" />
+             <div className="relative w-20 h-20 bg-white/5 border border-white/10 rounded-3xl flex items-center justify-center mx-auto mb-6 backdrop-blur-xl">
+               <Shield className="w-10 h-10 text-[#007b8a]" />
+             </div>
+          </div>
+          
+          <h1 className="text-4xl font-extrabold text-white mb-4 tracking-tight">
+            Restricted <span className="text-[#007b8a] italic">Access</span>
+          </h1>
+          <p className="text-gray-400 mb-10 text-lg leading-relaxed px-4">
+            {user 
+              ? "Your account does not have access to the dashboard yet. Please ensure you are registered as an attendee or competitor." 
+              : "Please log in with your Google account to access the MedEngineers 2026 agenda & dashboard."}
+          </p>
+
+          {!user ? (
+            <Button 
+              size="lg"
+              onClick={async () => {
+                try {
+                  await signInWithGoogle();
+                } catch (e) {
+                  console.log("Login cancelled or failed");
+                }
+              }}
+              className="group relative w-full flex items-center justify-center gap-3 bg-white text-zinc-950 text-lg sm:text-xl font-bold py-4 px-8 rounded-2xl overflow-hidden transition-all duration-300 shadow-xl shadow-white/5 hover:-translate-y-0.5 active:translate-y-0 h-14 sm:h-16"
+            >
+              <span className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-teal-100/80 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+              <svg className="relative z-10 mr-2 h-7 w-7 shrink-0 transition-transform duration-300 group-hover:scale-110" viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  fill="#4285F4"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                />
+                <path
+                  fill="#34A853"
+                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                />
+                <path
+                  fill="#FBBC05"
+                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                />
+                <path
+                  fill="#EA4335"
+                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                />
+              </svg>
+              <span className="relative z-10 transition-transform duration-300 group-hover:translate-x-0.5">
+                Log in with Google
+              </span>
+            </Button>
+          ) : (
+            <div className="flex flex-col gap-4">
+              <Button 
+                onClick={() => window.location.href = "/#registration"}
+                className="w-full bg-[#007b8a] hover:bg-[#00606d] text-white font-bold py-6 text-lg rounded-2xl shadow-lg transition-all hover:-translate-y-0.5"
+              >
+                Register Now
+              </Button>
+              <button 
+                onClick={async () => {
+                  await signOut();
+                  window.location.href = "/agenda";
+                }}
+                className="text-gray-500 hover:text-white transition-colors text-sm font-medium mt-2"
+              >
+                Sign out of {user.email}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0c0c0c] via-[#050505] to-[#121212] relative overflow-hidden text-gray-100 font-sans">
       {/* Background glowing effects - Subnormal Mesh Gradient */}
@@ -976,8 +1428,10 @@ function AgendaPageInner() {
       <div className="absolute top-[-15%] left-[-5%] w-[50%] h-[50%] rounded-full bg-[#007b8a]/3 blur-[120px] pointer-events-none" />
       <div className="absolute bottom-[-10%] right-[-5%] w-[40%] h-[40%] rounded-full bg-purple-900/3 blur-[120px] pointer-events-none" />
 
-      {/* Dev Role Switcher */}
-      <DevRoleSwitcher currentRole={currentRole} onRoleChange={handleRoleChange} />
+      {/* Admin Role Switcher (Impersonation) */}
+      {actualRole === "admin" && (
+        <DevRoleSwitcher currentRole={currentRole} onRoleChange={handleRoleChange} />
+      )}
       
       {/* ─── FULL-SCREEN MAP MODAL (ROOT LEVEL) ─── */}
       {isMapExpanded && (
@@ -1027,15 +1481,29 @@ function AgendaPageInner() {
         </div>
       )}
 
-      {/* Navigation Back */}
+      {/* Back Navigation - Top Left */}
       <div className={`absolute top-6 md:top-10 left-4 md:left-8 lg:left-12 xl:left-16 z-20 animate-in fade-in duration-700 transition-opacity ${isMapExpanded ? "opacity-0 pointer-events-none" : "opacity-100"}`}>
         <Link 
           href="/"
-          className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors border border-white/10 bg-white/5 backdrop-blur-md px-4 py-2 rounded-full hover:bg-white/10 text-sm font-semibold"
+          className="flex items-center gap-2 text-zinc-400 hover:text-white transition-colors border border-zinc-500/20 bg-zinc-500/10 backdrop-blur-md px-4 py-2 rounded-full hover:bg-zinc-500/20 text-sm font-semibold shadow-lg shadow-zinc-500/5"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Home
+          <span className="hidden sm:inline">Back to Home</span>
         </Link>
+      </div>
+
+      {/* Logout - Top Right */}
+      <div className={`absolute top-6 md:top-10 right-4 md:right-8 lg:right-12 xl:right-16 z-20 animate-in fade-in duration-700 transition-opacity flex items-center gap-3 ${isMapExpanded ? "opacity-0 pointer-events-none" : "opacity-100"}`}>
+        <button 
+          onClick={async () => {
+            await signOut();
+            window.location.href = "/agenda";
+          }}
+          className="flex items-center gap-2 text-red-400/80 hover:text-red-400 transition-colors border border-red-500/10 bg-red-500/5 backdrop-blur-md px-4 py-2 rounded-full hover:bg-red-500/10 text-sm font-semibold shadow-lg shadow-red-500/5"
+        >
+          <LogOut className="w-4 h-4" />
+          <span className="hidden sm:inline">Log Out</span>
+        </button>
       </div>
 
       <main className="relative z-10 container mx-auto px-4 py-20 pt-28 max-w-6xl">

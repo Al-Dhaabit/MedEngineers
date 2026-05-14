@@ -42,6 +42,8 @@ export function RegistrationSection() {
   } = useRegistrationStore();
 
   const [selectedFormType, setSelectedFormType] = useState<"competitor" | "attendee" | null>(null);
+  const [discountInput, setDiscountInput] = useState("");
+  const [isDiscountApplied, setIsDiscountApplied] = useState(false);
 
   // interface for UI state
   // Purpose: to manage the UI state of the registration section
@@ -382,6 +384,9 @@ export function RegistrationSection() {
       payload.append("transactionID", ui.transactionID.trim());
       payload.append("isAmbassador", String(ui.isAmbassador === true));
       payload.append("paymentProof", ui.paymentProofFile);
+      if (isDiscountApplied) {
+        payload.append("discountCode", discountInput.trim());
+      }
 
       const res = await fetch("/api/payment/submit-proof", {
         method: "POST",
@@ -853,7 +858,7 @@ export function RegistrationSection() {
                         />
 
                         <p className="max-w-xl text-base leading-7 text-zinc-300 sm:text-lg">
-                          Sign in with Google to start your application or check the status of an existing submission.
+                          Log in with Google to start your application or check the status of an existing submission.
                         </p>
                       </div>
 
@@ -1221,15 +1226,46 @@ export function RegistrationSection() {
                             )}
                           </div>
                         </div>
+                        
+                        {/* Discount Code Input */}
+                        {!ui.isAmbassador && userZustand?.submissionType !== "attendee" && (
+                          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between mt-4 pt-4 border-t border-zinc-800/50 gap-3 sm:gap-4">
+                            <div className="flex-1 w-full sm:max-w-[240px]">
+                              <input 
+                                type="text"
+                                placeholder="Discount Code (Optional)"
+                                value={discountInput}
+                                onChange={(e) => setDiscountInput(e.target.value)}
+                                className="w-full bg-[#18181b] border border-zinc-800/80 rounded-xl px-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-[#007b8a]/50 transition-colors"
+                              />
+                            </div>
+                            <button
+                              onClick={() => {
+                                if (discountInput.trim().toLowerCase() === "career club") {
+                                  setIsDiscountApplied(true);
+                                } else {
+                                  setIsDiscountApplied(false);
+                                  alert("Invalid discount code");
+                                }
+                              }}
+                              className={`w-full sm:w-auto px-5 py-2.5 text-sm font-semibold rounded-xl transition-all ${isDiscountApplied ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-zinc-800 hover:bg-zinc-700 text-white border border-transparent'}`}
+                            >
+                              {isDiscountApplied ? "Applied" : "Apply"}
+                            </button>
+                          </div>
+                        )}
+
                         {/* Amount pill */}
-                        <div className="flex items-center justify-between mt-4 pt-4 border-t border-zinc-800/50">
-                          <span className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Amount to transfer</span>
-                          <span className={`text-2xl font-black ${ui.isAmbassador ? 'text-amber-400' : 'text-[#00a8bd]'}`}>
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between mt-4 pt-4 border-t border-zinc-800/50 gap-1 sm:gap-0">
+                          <span className="text-[11px] sm:text-xs text-zinc-500 uppercase tracking-wider font-semibold">Amount to transfer</span>
+                          <span className={`text-2xl sm:text-3xl font-black whitespace-nowrap ${ui.isAmbassador ? 'text-amber-400' : 'text-[#00a8bd]'}`}>
                             {ui.isAmbassador
                               ? PAYMENT_AMOUNTS.ambassador
-                              : userZustand?.major === 'Engineering'
-                                ? PAYMENT_AMOUNTS.engineeringCompetitor
-                                : PAYMENT_AMOUNTS.healthcareCompetitor} AED
+                              : isDiscountApplied && !ui.isAmbassador && userZustand?.submissionType !== "attendee"
+                                ? "50"
+                                : userZustand?.major === 'Engineering'
+                                  ? PAYMENT_AMOUNTS.engineeringCompetitor
+                                  : PAYMENT_AMOUNTS.healthcareCompetitor} AED
                           </span>
                         </div>
                         {/* Change ambassador answer */}
@@ -1257,12 +1293,12 @@ export function RegistrationSection() {
                       <div className="border border-zinc-800/80 rounded-xl overflow-hidden bg-[#1f1f22] shadow-inner">
                         <div className="divide-y divide-zinc-800/60 text-[14px] sm:text-[15px]">
                           {BANK_DETAILS.map((item, i) => (
-                            <div key={i} className="group grid grid-cols-[140px_1fr] sm:grid-cols-[180px_1fr] items-center hover:bg-zinc-800/30 transition-colors px-4 py-3.5 sm:px-6 sm:py-4">
+                            <div key={i} className="group flex flex-col sm:grid sm:grid-cols-[180px_1fr] items-start sm:items-center hover:bg-zinc-800/30 transition-colors px-4 py-3.5 sm:px-6 sm:py-4 gap-1 sm:gap-0">
                               <div className="font-bold text-zinc-400 uppercase tracking-tight text-[11px] sm:text-xs">
                                 {item.label}
                               </div>
-                              <div className="flex items-center gap-2">
-                                <span className={`text-zinc-200 ${item.isMedium ? 'font-medium' : ''} ${item.isMono ? 'font-mono tracking-wider' : ''} ${item.breakAll ? 'break-all' : ''} text-sm sm:text-base`}>
+                              <div className="flex items-center justify-between w-full sm:w-auto gap-2">
+                                <span className={`text-zinc-200 ${item.isMedium ? 'font-medium' : ''} ${item.isMono ? 'font-mono text-[14px] sm:text-base tracking-tighter sm:tracking-wider' : 'text-sm sm:text-base'} ${item.breakAll ? 'break-all sm:break-normal' : ''}`}>
                                   {item.value}
                                 </span>
                                 {item.copyable && (
@@ -1582,9 +1618,9 @@ export function RegistrationSection() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-zinc-800/50">
-                      <span className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Amount to transfer</span>
-                      <span className="text-2xl font-black text-violet-400">{PAYMENT_AMOUNTS.attendee} AED</span>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between mt-4 pt-4 border-t border-zinc-800/50 gap-1 sm:gap-0">
+                      <span className="text-[11px] sm:text-xs text-zinc-500 uppercase tracking-wider font-semibold">Amount to transfer</span>
+                      <span className="text-2xl sm:text-3xl font-black whitespace-nowrap text-violet-400">{PAYMENT_AMOUNTS.attendee} AED</span>
                     </div>
                   </div>
 
@@ -1601,12 +1637,12 @@ export function RegistrationSection() {
                     <div className="border border-zinc-800/80 rounded-xl overflow-hidden bg-[#1f1f22] shadow-inner">
                       <div className="divide-y divide-zinc-800/60 text-[14px] sm:text-[15px]">
                         {BANK_DETAILS.map((item, i) => (
-                          <div key={i} className="group grid grid-cols-[140px_1fr] sm:grid-cols-[180px_1fr] items-center hover:bg-zinc-800/30 transition-colors px-4 py-3.5 sm:px-6 sm:py-4">
+                          <div key={i} className="group flex flex-col sm:grid sm:grid-cols-[180px_1fr] items-start sm:items-center hover:bg-zinc-800/30 transition-colors px-4 py-3.5 sm:px-6 sm:py-4 gap-1 sm:gap-0">
                             <div className="font-bold text-zinc-400 uppercase tracking-tight text-[11px] sm:text-xs">
                               {item.label}
                             </div>
-                            <div className="flex items-center gap-2">
-                              <span className={`text-zinc-200 ${item.isMedium ? 'font-medium' : ''} ${item.isMono ? 'font-mono tracking-wider' : ''} ${item.breakAll ? 'break-all' : ''} text-sm sm:text-base`}>
+                            <div className="flex items-center justify-between w-full sm:w-auto gap-2">
+                              <span className={`text-zinc-200 ${item.isMedium ? 'font-medium' : ''} ${item.isMono ? 'font-mono text-[14px] sm:text-base tracking-tighter sm:tracking-wider' : 'text-sm sm:text-base'} ${item.breakAll ? 'break-all sm:break-normal' : ''}`}>
                                 {item.value}
                               </span>
                               {item.copyable && (

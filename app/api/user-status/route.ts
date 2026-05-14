@@ -132,7 +132,12 @@ export async function POST(req: NextRequest) {
         }
 
         // Authorization: User can only read their own status, unless they're an admin
-        const isAdmin = decodedToken.admin === true;
+        const adminEmails = [
+            "khaled.a.m2006@gmail.com",
+            "mohammad01ahmad@gmail.com",
+            "medhackglobal@gmail.com"
+        ];
+        const isAdmin = decodedToken.admin === true || (decodedToken.email && adminEmails.includes(decodedToken.email));
         const isOwnStatus = decodedToken.uid === uid;
 
         if (!isOwnStatus && !isAdmin) {
@@ -144,6 +149,21 @@ export async function POST(req: NextRequest) {
         }
 
         console.log(`[UserStatus] ${decodedToken.email} checking status for ${uid} (admin: ${isAdmin})`);
+
+        // If the user is an admin, return immediately with admin type
+        if (isAdmin && isOwnStatus) {
+            return NextResponse.json({
+                status: true,
+                type: "admin",
+                workflowStatus: "final_phase",
+                user: {
+                    uid,
+                    email: decodedToken.email || "",
+                    submissionType: "admin",
+                    status: "final_phase",
+                }
+            }, { status: 200 });
+        }
 
         // ============================================
         // FETCH USER STATUS

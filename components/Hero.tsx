@@ -82,8 +82,13 @@ export function Hero() {
             />
           </div>
 
-          <div className="mt-2 sm:mt-3 flex flex-row items-center justify-center gap-2 sm:gap-3 text-white/95 font-medium tracking-wide">
-            <span className="text-xl sm:text-3xl">🇦🇪</span>
+          <div className="mt-2 sm:mt-3 flex flex-row items-center justify-center gap-2.5 sm:gap-4 text-white/95 font-medium tracking-wide">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 60" className="w-7 h-[17px] sm:w-9 sm:h-[22px] rounded-sm shadow-sm shrink-0">
+              <rect width="120" height="60" fill="#000" />
+              <rect width="120" height="20" fill="#00732F" />
+              <rect y="20" width="120" height="20" fill="#FFF" />
+              <rect width="30" height="60" fill="#FF0000" />
+            </svg>
             <span className="text-xs sm:text-xl md:text-2xl uppercase tracking-widest font-light text-center">
               Where Medicine Meets Engineering
             </span>
