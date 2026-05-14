@@ -9,6 +9,7 @@ import { retrieveFormData, hasValidStoredData, clearStoredData } from "@/lib/sec
 import { useAuth } from "@/lib/AuthContext";
 import { useRegistrationStore, type workFlowStatus } from "@/lib/registrationStore";
 import { User, Mail, GraduationCap, Calendar, Briefcase, Globe, Ticket, ChevronDown } from "lucide-react";
+import { AlertModal } from "./AlertModal";
 
 const BANK_DETAILS = [
   { label: "Account Holder Name", value: "NOURA HAGAR", isMedium: true },
@@ -44,6 +45,11 @@ export function RegistrationSection() {
   const [selectedFormType, setSelectedFormType] = useState<"competitor" | "attendee" | null>(null);
   const [discountInput, setDiscountInput] = useState("");
   const [isDiscountApplied, setIsDiscountApplied] = useState(false);
+  const [alertConfig, setAlertConfig] = useState<{ isOpen: boolean; title: string; message: string; type?: "error" | "warning" | "info" }>({
+    isOpen: false,
+    title: "",
+    message: ""
+  });
 
   // interface for UI state
   // Purpose: to manage the UI state of the registration section
@@ -1241,11 +1247,16 @@ export function RegistrationSection() {
                             </div>
                             <button
                               onClick={() => {
-                                if (discountInput.trim().toLowerCase() === "career club") {
+                                if (discountInput.trim().toLowerCase() === "career club gmu") {
                                   setIsDiscountApplied(true);
                                 } else {
                                   setIsDiscountApplied(false);
-                                  alert("Invalid discount code");
+                                  setAlertConfig({
+                                    isOpen: true,
+                                    type: "error",
+                                    title: "Invalid Code",
+                                    message: "The discount code you entered is invalid or expired."
+                                  });
                                 }
                               }}
                               className={`w-full sm:w-auto px-5 py-2.5 text-sm font-semibold rounded-xl transition-all ${isDiscountApplied ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-zinc-800 hover:bg-zinc-700 text-white border border-transparent'}`}
@@ -2248,6 +2259,11 @@ export function RegistrationSection() {
           </div>
         )}
       </div>
+
+      <AlertModal 
+        {...alertConfig} 
+        onClose={() => setAlertConfig({ ...alertConfig, isOpen: false })} 
+      />
     </section>
   );
 }
