@@ -70,7 +70,7 @@ export function CustomApplicationForm({ onSubmitSuccess, initialFormType }: Cust
             showFor: "Engineering"
         },
         "Briefly describe your most \"hands-on\" project: (This could be a lab assignment, a student club project, or a personal hobby like fixing a car or building a website).": {
-            title: "Experience & Proof of Work",
+            title: "Experience & Proof of Work (OPTIONAL)",
             description: "",
             showFor: "Engineering"
         },
@@ -301,8 +301,12 @@ export function CustomApplicationForm({ onSubmitSuccess, initialFormType }: Cust
             const isLinkedInField = lowLabel.includes("linkedin");
             const isCvField = lowLabel.includes("cv") || lowLabel.includes("resume");
             const isPortfolioField = lowLabel.includes("portfolio") || lowLabel.includes("project link");
+            const isEngineeringOptional =
+                lowLabel.includes("hands-on\" project") ||
+                lowLabel.includes("professional or internship setting") ||
+                lowLabel.includes("medication delivery system is failing");
 
-            if (isToolkitGroup || isLinkedInField || isCvField || isPortfolioField) return false;
+            if (isToolkitGroup || isLinkedInField || isCvField || isPortfolioField || isEngineeringOptional) return false;
             return true;
         }
         return question.required;

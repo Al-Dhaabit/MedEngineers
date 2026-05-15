@@ -193,9 +193,7 @@ export function validateCompetitorForm(data: any) {
       errors.push("Invalid work style selection");
     }
 
-    if (!hasNonEmptyText(data.challengeAnswer)) {
-      errors.push("Challenge answer is required and cannot be empty.");
-    }
+
   } else if (data.major === "Medicine" || data.major === "Healthcare") {
 
     // Major type validation for Medicine/Healthcare
