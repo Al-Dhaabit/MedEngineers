@@ -44,6 +44,7 @@ import {
   LogOut,
   Search,
   AlertCircle,
+  Globe,
   type LucideIcon,
 } from "lucide-react";
 
@@ -1132,16 +1133,102 @@ function AdminPanel({
   );
 }
 
+/* ═══════════════════════════════════════════
+   MENTOR DASHBOARD COMPONENT
+═══════════════════════════════════════════ */
+function MentorDashboard() {
+  const [teams, setTeams] = useState<Team[]>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("medhack_teams");
+      if (stored) return JSON.parse(stored);
+    }
+    return [];
+  });
+  const [selectedTeamIds, setSelectedTeamIds] = useState<number[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const toggleTeamSelection = (teamId: number) => {
+    setSelectedTeamIds(prev => {
+      if (prev.includes(teamId)) return prev.filter(id => id !== teamId);
+      if (prev.length >= 15) {
+        alert("You can only select up to 15 teams.");
+        return prev;
+      }
+      return [...prev, teamId];
+    });
+  };
+
+  const filteredTeams = teams.filter(t => 
+    t.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-6 animate-in fade-in zoom-in-95 duration-500">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-[#111118] border border-white/5 p-6 rounded-3xl">
+        <div>
+          <h2 className="text-2xl font-bold text-white mb-2">Mentor Evaluation Dashboard</h2>
+          <p className="text-gray-400">Select the Top 15 teams to advance to the next round.</p>
+        </div>
+        <div className="bg-purple-500/10 border border-purple-500/20 px-6 py-3 rounded-2xl flex flex-col items-center min-w-[120px]">
+          <span className="text-sm font-bold text-purple-400 uppercase tracking-widest">Selected</span>
+          <span className="text-3xl font-black text-white">{selectedTeamIds.length} <span className="text-lg text-gray-500">/ 15</span></span>
+        </div>
+      </div>
+
+      <div className="relative">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
+        <input 
+          type="text" 
+          placeholder="Search teams by name..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="w-full bg-[#111118] border border-white/5 rounded-2xl pl-12 pr-4 py-4 text-white placeholder-gray-500 focus:outline-none focus:border-purple-500/50 transition-colors"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {filteredTeams.map(team => {
+          const isSelected = selectedTeamIds.includes(team.id);
+          return (
+            <div 
+              key={team.id}
+              onClick={() => toggleTeamSelection(team.id)}
+              className={`p-6 rounded-2xl border transition-all cursor-pointer relative overflow-hidden ${isSelected ? "bg-purple-500/10 border-purple-500/50 shadow-[0_0_20px_rgba(168,85,247,0.2)]" : "bg-white/[0.02] border-white/5 hover:border-white/20"}`}
+            >
+              {isSelected && (
+                <div className="absolute top-4 right-4 w-6 h-6 bg-purple-500 rounded-full flex items-center justify-center">
+                  <CheckCircle2 className="w-4 h-4 text-white" />
+                </div>
+              )}
+              <h3 className="text-lg font-bold text-white mb-4 pr-8 truncate">{team.name}</h3>
+              <div className="flex items-center gap-2">
+                <Users className="w-4 h-4 text-gray-500" />
+                <span className="text-sm text-gray-400">{team.members.length} Members</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {filteredTeams.length === 0 && (
+        <div className="text-center py-12 text-gray-500">
+          No teams found matching "{searchQuery}"
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 /* ═══════════════════════════════════════════
    DEV MODE ROLE TYPES
 ═══════════════════════════════════════════ */
-type UserRole = "attendee" | "competitor" | "admin";
+type UserRole = "attendee" | "competitor" | "admin" | "mentor";
 
 const ROLE_CONFIG: Record<UserRole, { label: string; icon: LucideIcon; color: string; bgColor: string; borderColor: string; description: string }> = {
   attendee: { label: "Attendee", icon: Eye, color: "text-blue-400", bgColor: "bg-blue-500/15", borderColor: "border-blue-500/30", description: "Public view — schedule only" },
   competitor: { label: "Competitor", icon: Swords, color: "text-amber-400", bgColor: "bg-amber-500/15", borderColor: "border-amber-500/30", description: "Participant view — schedule + team info" },
   admin: { label: "Admin", icon: Shield, color: "text-[#007b8a]", bgColor: "bg-[#007b8a]/15", borderColor: "border-[#007b8a]/30", description: "Full access — manage teams & members" },
+  mentor: { label: "Mentor", icon: Star, color: "text-purple-400", bgColor: "bg-purple-500/15", borderColor: "border-purple-500/30", description: "Evaluate and select top teams" },
 };
 
 /* ─── ADMIN IMPERSONATION SWITCHER ─── */
@@ -1246,8 +1333,9 @@ function AgendaPageInner() {
 
     const applyRole = (realRole: UserRole) => {
       setActualRole(realRole);
-      if (realRole === "admin" && roleParam && ["attendee", "competitor", "admin"].includes(roleParam)) {
-        setCurrentRole(roleParam);
+      const allowedParams = ["attendee", "competitor", "admin", "mentor"];
+      if ((realRole === "admin" || realRole === "mentor") && roleParam && allowedParams.includes(roleParam)) {
+        setCurrentRole(roleParam as UserRole);
       } else {
         setCurrentRole(realRole);
       }
@@ -1261,9 +1349,19 @@ function AgendaPageInner() {
       "mohammad01ahmad@gmail.com",
       "medhackglobal@gmail.com"
     ];
-    if (user.email && adminEmails.includes(user.email)) {
-      applyRole("admin");
-      return;
+    const mentorEmails = [
+      "khaled.a.m2006@gmail.com"
+    ];
+    
+    if (user.email) {
+      if (adminEmails.includes(user.email)) {
+        applyRole("admin");
+        return;
+      }
+      if (mentorEmails.includes(user.email)) {
+        applyRole("mentor");
+        return;
+      }
     }
 
     const checkUserStatus = async () => {
@@ -1299,7 +1397,12 @@ function AgendaPageInner() {
 
   // Admin impersonation role switcher handler
   const handleRoleChange = useCallback((role: UserRole) => {
-    if (actualRole === "admin") {
+    if (actualRole === "admin" || actualRole === "mentor") {
+      // Don't let pure mentors switch to admin
+      if (actualRole === "mentor" && role === "admin") {
+        alert("You do not have permission to switch to Admin.");
+        return;
+      }
       setCurrentRole(role);
       const url = new URL(window.location.href);
       url.searchParams.set("role", role);
@@ -1429,7 +1532,7 @@ function AgendaPageInner() {
       <div className="absolute bottom-[-10%] right-[-5%] w-[40%] h-[40%] rounded-full bg-purple-900/3 blur-[120px] pointer-events-none" />
 
       {/* Admin Role Switcher (Impersonation) */}
-      {actualRole === "admin" && (
+      {(actualRole === "admin" || actualRole === "mentor") && (
         <DevRoleSwitcher currentRole={currentRole} onRoleChange={handleRoleChange} />
       )}
       
@@ -1519,8 +1622,15 @@ function AgendaPageInner() {
           </div>
         )}
 
+        {/* ─── MENTOR DASHBOARD (TOP LEVEL) ─── */}
+        {!roleLoading && currentRole === "mentor" && (
+          <div className="animate-in fade-in slide-in-from-top-6 duration-1000 mb-10">
+            <MentorDashboard />
+          </div>
+        )}
+
         {/* ─── PUBLIC STAT CARDS ─── */}
-        {currentRole !== "admin" && (
+        {currentRole !== "admin" && currentRole !== "mentor" && (
           <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4 mb-10 animate-in fade-in slide-in-from-bottom-6 duration-1000 delay-100 fill-mode-both">
             {currentRole === "attendee" ? (
               <>
@@ -2205,17 +2315,17 @@ function AgendaPageInner() {
 
                 <div>
                   <label className="block text-[11px] font-bold tracking-[1.5px] uppercase text-gray-400 mb-2 shrink-0">
-                    Image URL <span className="text-gray-500 font-semibold">(Optional)</span>
+                    Project Files <span className="text-gray-500 font-semibold">(Google Drive Link)</span>
                   </label>
                   <input 
                     type="text" 
                     value={productImageUrl}
                     onChange={(e) => setProductImageUrl(e.target.value)}
-                    placeholder="https://..."
+                    placeholder="https://drive.google.com/..."
                     className="w-full bg-[#1A1A24] border border-white/5 rounded-lg px-4 py-3 placeholder-zinc-600 focus:outline-none focus:border-[#007b8a]/50 focus:ring-1 focus:ring-[#007b8a]/50 transition-all font-medium text-white mb-1.5"
                   />
                   <p className="text-[11px] text-gray-500 leading-relaxed font-medium pl-1">
-                    Please upload your image to <span className="text-gray-300 font-bold">Google Drive</span>, ensure the sharing permission is "Anyone with the link", and paste the link here.
+                    Please upload your project-related files (images, presentations, etc.) to <span className="text-gray-300 font-bold">Google Drive</span>, ensure sharing is set to "Anyone with the link", and paste the link here.
                   </p>
                 </div>
 
